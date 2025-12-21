@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enercon Knowledge Base</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #2d2d44;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #e74c3c; }
+        .status-dot.connected { background: #2ecc71; }
+        .stats { color: #888; margin-left: 15px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab {
+            padding: 12px 24px;
+            background: #2d2d44;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .tab:hover, .tab.active { background: linear-gradient(90deg, #f39c12, #e74c3c); }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        
+        /* Search & Controls */
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-box input {
+            flex: 1;
+            padding: 15px 20px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            background: #2d2d44;
+            color: #fff;
+            outline: none;
+        }
+        .search-box input:focus { box-shadow: 0 0 0 2px #f39c12; }
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #f39c12;
+        }
+        .btn-outline.active {
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+        }
+        
+        /* View Toggle */
+        .view-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .view-toggle { display: flex; gap: 5px; }
+        .results-count { color: #888; }
+        
+        /* Results - Cards View */
+        .results { display: grid; gap: 15px; }
+        .results.cards-view { grid-template-columns: 1fr; }
+        .result-card {
+            background: #2d2d44;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #f39c12;
+            transition: transform 0.2s;
+        }
+        .result-card:hover { transform: translateX(5px); }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .result-title { font-size: 1.2em; color: #f39c12; }
+        .result-score {
+            background: #1a1a2e;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+        }
+        .result-category {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-bottom: 10px;
+            background: #3498db;
+        }
+        .result-category.panel { background: #27ae60; }
+        .result-category.inverter { background: #9b59b6; }
+        .result-category.battery { background: #e67e22; }
+        .result-category.pricelist { background: #1abc9c; }
+        .result-category.quote { background: #e74c3c; }
+        .result-category.accessories { background: #34495e; }
+        .result-text {
+            color: #aaa;
+            font-size: 0.95em;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        /* Results - List View */
+        .results.list-view { display: block; }
+        .results.list-view .result-card {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 20px;
+            margin-bottom: 8px;
+            border-left: none;
+            border-radius: 8px;
+        }
+        .results.list-view .result-card:hover { transform: none; background: #3d3d54; }
+        .results.list-view .result-header { display: none; }
+        .results.list-view .result-title {
+            font-size: 1em;
+            margin: 0;
+            order: 2;
+        }
+        .results.list-view .result-category {
+            margin: 0;
+            order: 1;
+            min-width: 80px;
+            text-align: center;
+        }
+        .results.list-view .result-score-inline {
+            order: 3;
+            background: #1a1a2e;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            color: #f39c12;
+        }
+        .results.list-view .result-text { display: none; }
+        .results.list-view .result-actions {
+            order: 4;
+            display: flex;
+            gap: 5px;
+        }
+        .results.list-view .btn-view {
+            padding: 5px 10px;
+            background: #3498db;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        
+        /* Detail Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #2d2d44;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+        .modal-title { font-size: 1.4em; color: #f39c12; }
+        .modal-close {
+            background: #e74c3c;
+            border: none;
+            color: #fff;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        .modal-body { color: #ccc; line-height: 1.8; white-space: pre-wrap; }
+        
+        /* File Upload */
+        .upload-zone {
+            border: 3px dashed #444;
+            border-radius: 12px;
+            padding: 60px;
+            text-align: center;
+            background: #2d2d44;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #f39c12; background: #3d3d54; }
+        .upload-zone h3 { margin-bottom: 10px; color: #f39c12; }
+        .upload-zone p { color: #888; }
+        .upload-zone input { display: none; }
+        .file-list { margin-top: 20px; }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .file-item .name { color: #f39c12; }
+        .file-item .status { font-size: 0.9em; }
+        .file-item .status.pending { color: #888; }
+        .file-item .status.uploading { color: #3498db; }
+        .file-item .status.done { color: #2ecc71; }
+        .file-item .status.error { color: #e74c3c; }
+        .category-select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+        
+        /* Docs Grid/List */
+        .docs-controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .docs-list { display: block; }
+        .doc-card {
+            background: #2d2d44;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .docs-list .doc-card { margin-bottom: 8px; }
+        .doc-card .title {
+            font-size: 0.95em;
+            color: #fff;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .doc-card .delete-btn {
+            background: #e74c3c;
+            border: none;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27ae60;
+            padding: 15px 25px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1001;
+        }
+        .loading { text-align: center; padding: 40px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Enercon Knowledge Base</h1>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Disconnected</span>
+                <span class="stats" id="statsText"></span>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showPanel('search')">Αναζητηση</button>
+            <button class="tab" onclick="showPanel('upload')">Upload Αρχειων</button>
+            <button class="tab" onclick="showPanel('docs')">Ολα τα Docs</button>
+        </div>
+
+        <!-- SEARCH PANEL -->
+        <div id="searchPanel" class="panel active">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Αναζητηση... π.χ. τιμη inverter 10kw, JA Solar specs">
+                <button class="btn" onclick="doSearch()">Αναζητηση</button>
+            </div>
+            
+            <div class="view-controls">
+                <span class="results-count" id="resultsCount"></span>
+                <div class="view-toggle">
+                    <button class="btn btn-small btn-outline active" id="btnCards" onclick="setView('cards')">Cards</button>
+                    <button class="btn btn-small btn-outline" id="btnList" onclick="setView('list')">List</button>
+                </div>
+            </div>
+            
+            <div id="results" class="results cards-view"></div>
+        </div>
+
+        <!-- UPLOAD PANEL -->
+        <div id="uploadPanel" class="panel">
+            <select class="category-select" id="uploadCategory">
+                <option value="general">Αυτοματη Αναγνωριση</option>
+                <option value="pricelist">Τιμοκαταλογος</option>
+                <option value="panel">Panel</option>
+                <option value="inverter">Inverter</option>
+                <option value="battery">Battery</option>
+                <option value="quote">Προσφορα</option>
+                <option value="accessories">Παρελκομενα</option>
+            </select>
+            
+            <div class="upload-zone" id="uploadZone">
+                <h3>Συρε & Αφησε Αρχεια Εδω</h3>
+                <p>PDF, Excel, TXT, CSV - ή κλικ για επιλογη</p>
+                <input type="file" id="fileInput" multiple accept=".pdf,.txt,.csv,.xlsx,.xls">
+            </div>
+            
+            <div class="file-list" id="fileList"></div>
+            
+            <button class="btn" onclick="uploadAllFiles()" style="width:100%; margin-top:15px;">
+                Upload Ολα τα Αρχεια
+            </button>
+        </div>
+
+        <!-- DOCS PANEL -->
+        <div id="docsPanel" class="panel">
+            <div class="docs-controls">
+                <button class="btn" onclick="loadDocs()">Ανανεωση</button>
+                <div class="view-toggle">
+                    <button class="btn btn-small btn-outline active" id="btnDocsCards" onclick="setDocsView('grid')">Cards</button>
+                    <button class="btn btn-small btn-outline" id="btnDocsList" onclick="setDocsView('list')">List</button>
+                </div>
+            </div>
+            <div id="docsList" class="docs-grid"></div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle"></span>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let ws = null;
+        let reconnectInterval = null;
+        let pendingFiles = [];
+        let currentView = 'cards';
+        let currentDocsView = 'grid';
+        let lastResults = [];
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:8765');
+            
+            ws.onopen = () => {
+                document.getElementById('statusDot').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                ws.send(JSON.stringify({ action: 'stats' }));
+                if (reconnectInterval) { clearInterval(reconnectInterval); reconnectInterval = null; }
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                document.getElementById('statsText').textContent = '';
+                if (!reconnectInterval) { reconnectInterval = setInterval(connect, 3000); }
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.action === 'search_results') {
+                    lastResults = data.results;
+                    displayResults(data.results);
+                } else if (data.action === 'stats') {
+                    document.getElementById('statsText').textContent = `| ${data.data.total_vectors} documents`;
+                } else if (data.action === 'file_upload_success') {
+                    showToast(`Uploaded ${data.count} chunks`);
+                    updateFileStatus(data.files[0]?.title.split(' (Part')[0], 'done', `${data.count} parts`);
+                    ws.send(JSON.stringify({ action: 'stats' }));
+                } else if (data.action === 'list_results') {
+                    displayDocs(data.docs);
+                } else if (data.action === 'delete_success') {
+                    showToast(`Deleted`);
+                    loadDocs();
+                    ws.send(JSON.stringify({ action: 'stats' }));
+                } else if (data.action === 'error') {
+                    showToast(`Error: ${data.message}`, true);
+                }
+            };
+        }
+
+        function showPanel(name) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(name + 'Panel').classList.add('active');
+            event.target.classList.add('active');
+            if (name === 'docs') loadDocs();
+        }
+
+        // View Toggle
+        function setView(view) {
+            currentView = view;
+            document.getElementById('btnCards').classList.toggle('active', view === 'cards');
+            document.getElementById('btnList').classList.toggle('active', view === 'list');
+            document.getElementById('results').className = `results ${view}-view`;
+            displayResults(lastResults);
+        }
+
+        function setDocsView(view) {
+            currentDocsView = view;
+            document.getElementById('btnDocsCards').classList.toggle('active', view === 'grid');
+            document.getElementById('btnDocsList').classList.toggle('active', view === 'list');
+            document.getElementById('docsList').className = view === 'grid' ? 'docs-grid' : 'docs-list';
+        }
+
+        function doSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query || !ws || ws.readyState !== WebSocket.OPEN) return;
+            document.getElementById('results').innerHTML = '<div class="loading">Searching...</div>';
+            ws.send(JSON.stringify({ action: 'search', query: query, top_k: 15 }));
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('results');
+            document.getElementById('resultsCount').textContent = results.length > 0 ? `${results.length} αποτελεσματα` : '';
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="loading" style="color:#e74c3c">Δεν βρεθηκαν αποτελεσματα</div>';
+                return;
+            }
+            
+            if (currentView === 'cards') {
+                container.innerHTML = results.map(r => `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <span class="result-title">${r.title}</span>
+                            <span class="result-score">Score: ${r.score}</span>
+                        </div>
+                        <span class="result-category ${r.category}">${r.category}</span>
+                        <div class="result-text">${r.text}</div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = results.map((r, i) => `
+                    <div class="result-card">
+                        <span class="result-category ${r.category}">${r.category}</span>
+                        <span class="result-title">${r.title}</span>
+                        <span class="result-score-inline">${r.score}</span>
+                        <div class="result-actions">
+                            <button class="btn-view" onclick="showDetail(${i})">Προβολη</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function showDetail(index) {
+            const r = lastResults[index];
+            document.getElementById('modalTitle').textContent = r.title;
+            document.getElementById('modalBody').textContent = r.text;
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+
+        // File Upload
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+        function handleFiles(files) {
+            const fileList = document.getElementById('fileList');
+            for (const file of files) {
+                pendingFiles.push(file);
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.id = `file-${file.name.replace(/[^a-z0-9]/gi, '_')}`;
+                item.innerHTML = `<span class="name">${file.name}</span><span class="status pending">Pending</span>`;
+                fileList.appendChild(item);
+            }
+        }
+
+        function updateFileStatus(filename, status, text) {
+            const id = `file-${filename.replace(/[^a-z0-9]/gi, '_')}`;
+            const item = document.getElementById(id);
+            if (item) {
+                const statusEl = item.querySelector('.status');
+                statusEl.className = `status ${status}`;
+                statusEl.textContent = text || status;
+            }
+        }
+
+        async function uploadAllFiles() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) { showToast('Not connected', true); return; }
+            const category = document.getElementById('uploadCategory').value;
+            for (const file of pendingFiles) {
+                updateFileStatus(file.name, 'uploading', 'Uploading...');
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    ws.send(JSON.stringify({ action: 'upload_file', file_data: base64, filename: file.name, category: category }));
+                };
+                reader.readAsDataURL(file);
+                await new Promise(r => setTimeout(r, 500));
+            }
+            pendingFiles = [];
+        }
+
+        function loadDocs() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            document.getElementById('docsList').innerHTML = '<div class="loading">Loading...</div>';
+            ws.send(JSON.stringify({ action: 'list' }));
+        }
+
+        function displayDocs(docs) {
+            const container = document.getElementById('docsList');
+            container.innerHTML = docs.map(d => `
+                <div class="doc-card">
+                    <span class="result-category ${d.category}" style="margin-right:10px">${d.category}</span>
+                    <span class="title">${d.title}</span>
+                    <button class="delete-btn" onclick="deleteDoc('${d.id}')">X</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteDoc(id) {
+            if (confirm('Delete this document?')) {
+                ws.send(JSON.stringify({ action: 'delete', doc_id: id }));
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = isError ? '#e74c3c' : '#27ae60';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') doSearch(); });
+        document.getElementById('detailModal').addEventListener('click', (e) => { if (e.target.id === 'detailModal') closeModal(); });
+        
+        connect();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enercon Knowledge Base</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; padding: 20px 0; border-bottom: 1px solid #333; margin-bottom: 20px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .datetime { color: #888; font-size: 0.9em; display: flex; align-items: center; gap: 15px; }
+        .datetime i { color: #f39c12; }
+        .header-actions { display: flex; gap: 10px; }
+        .btn-icon { background: #2d2d44; border: none; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; transition: all 0.3s; }
+        .btn-icon:hover { background: #f39c12; transform: scale(1.1); }
+        .btn-ai { background: linear-gradient(135deg, #9b59b6, #3498db); animation: glow 2s ease-in-out infinite; }
+        .btn-ai:hover { background: linear-gradient(135deg, #8e44ad, #2980b9); }
+        @keyframes glow { 0%, 100% { box-shadow: 0 0 5px #9b59b6; } 50% { box-shadow: 0 0 20px #9b59b6, 0 0 30px #3498db; } }
+        header h1 { font-size: 2.2em; background: linear-gradient(90deg, #f39c12, #e74c3c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #2d2d44; border-radius: 20px; font-size: 0.9em; margin-top: 10px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #e74c3c; }
+        .status-dot.connected { background: #2ecc71; }
+        .auto-sync-badge { background: #27ae60; padding: 3px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 10px; display: none; }
+        .auto-sync-badge.active { display: inline; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab { padding: 10px 18px; background: #2d2d44; border: none; border-radius: 8px; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .tab:hover, .tab.active { background: linear-gradient(90deg, #f39c12, #e74c3c); }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-box input { flex: 1; padding: 15px 20px; font-size: 1.1em; border: none; border-radius: 8px; background: #2d2d44; color: #fff; outline: none; }
+        .search-box input:focus { box-shadow: 0 0 0 2px #f39c12; }
+        .btn { padding: 12px 24px; background: linear-gradient(90deg, #f39c12, #e74c3c); border: none; border-radius: 8px; color: #fff; font-size: 1em; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { transform: scale(1.02); }
+        .btn:disabled { opacity: 0.5; }
+        .btn-small { padding: 8px 16px; font-size: 0.9em; }
+        .btn-green { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+        .btn-blue { background: linear-gradient(90deg, #2980b9, #3498db); }
+        .btn-red { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+        .btn-purple { background: linear-gradient(90deg, #8e44ad, #9b59b6); }
+        .results { display: grid; gap: 15px; }
+        .result-card { background: #2d2d44; border-radius: 12px; padding: 20px; border-left: 4px solid #f39c12; }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .result-title { font-size: 1.1em; color: #f39c12; }
+        .result-score { background: #1a1a2e; padding: 5px 12px; border-radius: 15px; font-size: 0.85em; }
+        .result-category { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; background: #3498db; }
+        .result-category.email { background: #3498db; }
+        .result-category.note { background: #9b59b6; }
+        .result-category.panel { background: #27ae60; }
+        .result-category.inverter { background: #9b59b6; }
+        .result-category.battery { background: #e67e22; }
+        .result-text { color: #aaa; font-size: 0.9em; line-height: 1.6; max-height: 150px; overflow: hidden; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #2d2d44; border-radius: 12px; padding: 30px; max-width: 900px; max-height: 85vh; overflow-y: auto; width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px; }
+        .modal-title { font-size: 1.4em; color: #f39c12; display: flex; align-items: center; gap: 10px; }
+        .modal-close { background: #e74c3c; border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
+        .modal-body { color: #ccc; line-height: 1.8; }
+        .modal-body h3 { color: #f39c12; margin: 20px 0 10px 0; }
+        /* AI Assistant Styles */
+        .ai-modal .modal-content { max-width: 700px; background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%); border: 1px solid #9b59b6; }
+        .ai-header { text-align: center; margin-bottom: 20px; }
+        .ai-header h2 { font-size: 1.8em; background: linear-gradient(90deg, #9b59b6, #3498db); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px; }
+        .ai-header p { color: #888; }
+        .ai-options { display: grid; gap: 12px; }
+        .ai-option { background: #1a1a2e; border: 1px solid #3d3d54; border-radius: 12px; padding: 15px; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 15px; }
+        .ai-option:hover { border-color: #9b59b6; background: #252540; transform: translateX(5px); }
+        .ai-option i { font-size: 1.5em; color: #9b59b6; width: 40px; text-align: center; }
+        .ai-option h4 { color: #fff; margin-bottom: 3px; }
+        .ai-option p { color: #888; font-size: 0.85em; margin: 0; }
+        .ai-chat { margin-top: 20px; display: none; }
+        .ai-chat.active { display: block; }
+        .ai-messages { background: #1a1a2e; border-radius: 12px; padding: 15px; min-height: 200px; max-height: 300px; overflow-y: auto; margin-bottom: 15px; }
+        .ai-message { margin-bottom: 12px; padding: 10px 15px; border-radius: 12px; }
+        .ai-message.user { background: #3498db; margin-left: 20%; }
+        .ai-message.assistant { background: #2d2d44; margin-right: 20%; border-left: 3px solid #9b59b6; }
+        .ai-input-row { display: flex; gap: 10px; }
+        .ai-input-row input { flex: 1; padding: 12px 15px; border: none; border-radius: 8px; background: #1a1a2e; color: #fff; }
+        .ai-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .ai-suggestion { background: #3d3d54; padding: 6px 12px; border-radius: 15px; font-size: 0.8em; cursor: pointer; }
+        .ai-suggestion:hover { background: #9b59b6; }
+        /* Memory Stats */
+        .memory-stats { background: #1a1a2e; border-radius: 12px; padding: 20px; margin-top: 15px; }
+        .memory-bar { height: 20px; background: #3d3d54; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .memory-bar-fill { height: 100%; background: linear-gradient(90deg, #27ae60, #f39c12); border-radius: 10px; transition: width 0.5s; }
+        .memory-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px; }
+        .memory-item { background: #2d2d44; padding: 12px; border-radius: 8px; text-align: center; }
+        .memory-item i { font-size: 1.5em; color: #f39c12; margin-bottom: 5px; }
+        .memory-item .value { font-size: 1.3em; font-weight: bold; color: #fff; }
+        .memory-item .label { font-size: 0.8em; color: #888; }
+        /* Other styles */
+        .upload-zone { border: 3px dashed #444; border-radius: 12px; padding: 40px; text-align: center; background: #2d2d44; cursor: pointer; margin-bottom: 20px; }
+        .upload-zone:hover { border-color: #f39c12; }
+        .upload-zone i { font-size: 2em; color: #f39c12; }
+        .upload-zone input { display: none; }
+        .file-item { display: flex; justify-content: space-between; background: #1a1a2e; padding: 12px; border-radius: 8px; margin-bottom: 8px; }
+        .category-select { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #1a1a2e; color: #fff; margin-bottom: 15px; }
+        .email-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 15px; padding: 15px; background: #2d2d44; border-radius: 12px; }
+        .filter-group label { display: flex; align-items: center; gap: 6px; color: #888; margin-bottom: 5px; font-size: 0.85em; }
+        .filter-group select, .filter-group input { width: 100%; padding: 8px; border: none; border-radius: 6px; background: #1a1a2e; color: #fff; }
+        .email-actions { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
+        .email-item { background: #2d2d44; border-radius: 8px; padding: 12px 15px; margin-bottom: 10px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; cursor: pointer; }
+        .email-item:hover { background: #3d3d54; }
+        .email-checkbox { width: 20px; height: 20px; accent-color: #f39c12; }
+        .sync-log { background: #1a1a2e; padding: 12px; border-radius: 8px; max-height: 150px; overflow-y: auto; font-size: 0.8em; }
+        .sync-log .success { color: #2ecc71; }
+        .docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 15px; }
+        .doc-card { background: #2d2d44; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .doc-card .delete-btn { background: #e74c3c; border: none; color: #fff; padding: 5px 8px; border-radius: 5px; cursor: pointer; }
+        .notes-container { display: grid; grid-template-columns: 250px 1fr; gap: 20px; min-height: 450px; }
+        .notes-list { background: #2d2d44; border-radius: 12px; padding: 15px; }
+        .note-item { padding: 12px; background: #1a1a2e; border-radius: 8px; margin-bottom: 10px; cursor: pointer; border-left: 3px solid transparent; }
+        .note-item:hover, .note-item.active { border-left-color: #f39c12; }
+        .note-editor { background: #2d2d44; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; }
+        .note-editor input { background: #1a1a2e; border: none; padding: 12px; border-radius: 8px; color: #fff; margin-bottom: 10px; }
+        .note-editor textarea { flex: 1; background: #1a1a2e; border: none; padding: 15px; border-radius: 8px; color: #fff; resize: none; min-height: 250px; }
+        .note-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .calendar-container { display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
+        .calendar-main { background: #2d2d44; border-radius: 12px; padding: 20px; }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .calendar-nav button { background: #1a1a2e; border: none; color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin: 2px; }
+        .calendar-nav button:hover { background: #f39c12; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .calendar-day-header { text-align: center; padding: 10px; color: #888; font-weight: bold; }
+        .calendar-day { text-align: center; padding: 8px; background: #1a1a2e; border-radius: 6px; cursor: pointer; min-height: 50px; position: relative; }
+        .calendar-day:hover { background: #3d3d54; }
+        .calendar-day.today { border: 2px solid #f39c12; }
+        .calendar-day.selected { background: #f39c12; }
+        .calendar-day.has-event::after { content: ''; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: #2ecc71; border-radius: 50%; }
+        .calendar-sidebar { background: #2d2d44; border-radius: 12px; padding: 20px; max-height: 600px; overflow-y: auto; }
+        .event-item { background: #1a1a2e; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #f39c12; position: relative; }
+        .event-item .event-delete { position: absolute; top: 8px; right: 8px; background: #e74c3c; border: none; color: #fff; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; }
+        .event-item.google { border-left-color: #4285f4; }
+        .add-event-form { margin-top: 20px; padding-top: 15px; border-top: 1px solid #444; }
+        .add-event-form input, .add-event-form textarea { width: 100%; background: #1a1a2e; border: none; padding: 10px; border-radius: 6px; color: #fff; margin-bottom: 8px; }
+        .contacts-header { display: flex; gap: 10px; margin-bottom: 15px; }
+        .contacts-search { flex: 1; padding: 12px; border: none; border-radius: 8px; background: #2d2d44; color: #fff; }
+        .contacts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .contact-card { background: #2d2d44; border-radius: 12px; padding: 15px; border-left: 4px solid #3498db; }
+        .contact-card h3 { color: #f39c12; margin-bottom: 10px; }
+        .contact-info span { display: flex; align-items: center; gap: 8px; color: #aaa; margin: 5px 0; }
+        .contact-info a { color: #3498db; text-decoration: none; }
+        .settings-section { background: #2d2d44; border-radius: 12px; padding: 20px; margin-bottom: 15px; }
+        .settings-section h3 { color: #f39c12; margin-bottom: 15px; }
+        .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #3d3d54; }
+        .setting-item:last-child { border-bottom: none; }
+        .setting-item small { color: #888; display: block; margin-top: 3px; }
+        .toggle { width: 50px; height: 26px; background: #1a1a2e; border-radius: 13px; position: relative; cursor: pointer; }
+        .toggle.active { background: #27ae60; }
+        .toggle::after { content: ''; position: absolute; width: 22px; height: 22px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: 0.3s; }
+        .toggle.active::after { left: 26px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #27ae60; padding: 15px 25px; border-radius: 8px; display: none; z-index: 1001; }
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .loading-spinner { display: inline-block; width: 25px; height: 25px; border: 3px solid #444; border-top-color: #f39c12; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 900px) { .calendar-container, .notes-container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div class="datetime">
+                    <span><i class="fas fa-calendar"></i> <span id="currentDate"></span></span>
+                    <span><i class="fas fa-clock"></i> <span id="currentTime"></span></span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-icon btn-ai" onclick="showAI()" title="AI Assistant"><i class="fas fa-magic"></i></button>
+                    <button class="btn-icon" onclick="showHelp()" title="Βοήθεια"><i class="fas fa-question-circle"></i></button>
+                    <button class="btn-icon" onclick="showPanel('settings')" title="Ρυθμίσεις"><i class="fas fa-cog"></i></button>
+                </div>
+            </div>
+            <h1><i class="fas fa-solar-panel"></i> Enercon Knowledge Base</h1>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Disconnected</span>
+                <span id="statsText" style="color:#888;margin-left:10px;"></span>
+                <span class="auto-sync-badge" id="autoSyncBadge"><i class="fas fa-sync-alt"></i> Auto</span>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showPanel('search')"><i class="fas fa-search"></i> Αναζήτηση</button>
+            <button class="tab" onclick="showPanel('upload')"><i class="fas fa-cloud-upload-alt"></i> Upload</button>
+            <button class="tab" onclick="showPanel('email')"><i class="fas fa-envelope"></i> Email</button>
+            <button class="tab" onclick="showPanel('contacts')"><i class="fas fa-address-book"></i> Επαφές</button>
+            <button class="tab" onclick="showPanel('notes')"><i class="fas fa-sticky-note"></i> Σημειώσεις</button>
+            <button class="tab" onclick="showPanel('calendar')"><i class="fas fa-calendar-alt"></i> Ημερολόγιο</button>
+            <button class="tab" onclick="showPanel('docs')"><i class="fas fa-folder-open"></i> Έγγραφα</button>
+        </div>
+
+        <!-- SEARCH -->
+        <div id="searchPanel" class="panel active">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Αναζήτηση... π.χ. inverter 10kw τιμή">
+                <button class="btn" onclick="doSearch()"><i class="fas fa-search"></i> Αναζήτηση</button>
+            </div>
+            <div id="resultsCount" style="color:#888;margin-bottom:15px;"></div>
+            <div id="results" class="results"></div>
+        </div>
+
+        <!-- UPLOAD -->
+        <div id="uploadPanel" class="panel">
+            <select class="category-select" id="uploadCategory">
+                <option value="general">Αυτόματη</option>
+                <option value="pricelist">Τιμοκατάλογος</option>
+                <option value="panel">Panel</option>
+                <option value="inverter">Inverter</option>
+                <option value="battery">Battery</option>
+            </select>
+            <div class="upload-zone" id="uploadZone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>Σύρε Αρχεία</h3>
+                <p>PDF, Excel, TXT</p>
+                <input type="file" id="fileInput" multiple>
+            </div>
+            <div id="fileList"></div>
+            <button class="btn" onclick="uploadAllFiles()" style="width:100%;"><i class="fas fa-upload"></i> Upload</button>
+        </div>
+
+        <!-- EMAIL -->
+        <div id="emailPanel" class="panel">
+            <div class="email-filters">
+                <div class="filter-group"><label><i class="fas fa-folder"></i> Κατηγορία</label><select id="emailCategory"><option value="all">Όλες</option><option value="primary" selected>Κύρια</option><option value="updates">Ενημερώσεις</option><option value="sent">Απεσταλμένα</option></select></div>
+                <div class="filter-group"><label><i class="fas fa-calendar"></i> Ημέρες</label><select id="emailDays"><option value="7">7</option><option value="30" selected>30</option><option value="90">90</option></select></div>
+                <div class="filter-group"><label><i class="fas fa-paperclip"></i> Συνημμένα</label><select id="emailFilter"><option value="all">Όλα</option><option value="attachments">Με συνημμένα</option></select></div>
+                <div class="filter-group"><label><i class="fas fa-search"></i> Αναζήτηση</label><input type="text" id="emailSearch" placeholder="π.χ. bigsolar"></div>
+            </div>
+            <div class="email-actions">
+                <button class="btn btn-blue" onclick="fetchEmails()"><i class="fas fa-download"></i> Φόρτωση</button>
+                <button class="btn btn-green" onclick="syncSelectedEmails()" id="btnSync" disabled><i class="fas fa-sync-alt"></i> Sync (<span id="selectedCount">0</span>)</button>
+                <label style="color:#888;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"> Όλα</label>
+                <span id="lastSyncTime" style="color:#888;font-size:0.85em;margin-left:auto;"></span>
+            </div>
+            <div id="syncStatus" style="display:none;"><div class="sync-log" id="syncLog"></div></div>
+            <div id="emailList"><div class="loading"><i class="fas fa-info-circle"></i> Πατήστε "Φόρτωση"</div></div>
+        </div>
+
+        <!-- CONTACTS -->
+        <div id="contactsPanel" class="panel">
+            <div class="contacts-header">
+                <input type="text" class="contacts-search" id="contactsSearch" placeholder="Αναζήτηση επαφής..." oninput="filterContacts()">
+                <button class="btn btn-blue" onclick="fetchContacts()"><i class="fas fa-sync"></i> Φόρτωση</button>
+            </div>
+            <div id="contactsList" class="contacts-grid"><div class="loading"><i class="fas fa-info-circle"></i> Πατήστε "Φόρτωση"</div></div>
+        </div>
+
+        <!-- NOTES -->
+        <div id="notesPanel" class="panel">
+            <div class="notes-container">
+                <div class="notes-list">
+                    <button class="btn btn-small" onclick="newNote()" style="width:100%;margin-bottom:15px;"><i class="fas fa-plus"></i> Νέα</button>
+                    <div id="notesList"></div>
+                </div>
+                <div class="note-editor">
+                    <input type="text" id="noteTitle" placeholder="Τίτλος...">
+                    <textarea id="noteContent" placeholder="Σημείωση..."></textarea>
+                    <div class="note-actions">
+                        <button class="btn btn-green btn-small" onclick="saveNote()"><i class="fas fa-save"></i> Αποθήκευση</button>
+                        <button class="btn btn-red btn-small" onclick="deleteNote()"><i class="fas fa-trash"></i> Διαγραφή</button>
+                        <button class="btn btn-purple btn-small" onclick="syncNoteToRAG()"><i class="fas fa-brain"></i> Sync RAG</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CALENDAR -->
+        <div id="calendarPanel" class="panel">
+            <div class="calendar-container">
+                <div class="calendar-main">
+                    <div class="calendar-header">
+                        <h2 id="calendarMonth"></h2>
+                        <div class="calendar-nav">
+                            <button onclick="prevMonth()"><i class="fas fa-chevron-left"></i></button>
+                            <button onclick="goToday()">Σήμερα</button>
+                            <button onclick="nextMonth()"><i class="fas fa-chevron-right"></i></button>
+                            <button class="btn btn-blue btn-small" onclick="fetchGoogleCalendar()"><i class="fab fa-google"></i> Sync</button>
+                        </div>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="calendar-day-header">Κυρ</div><div class="calendar-day-header">Δευ</div><div class="calendar-day-header">Τρι</div><div class="calendar-day-header">Τετ</div><div class="calendar-day-header">Πεμ</div><div class="calendar-day-header">Παρ</div><div class="calendar-day-header">Σαβ</div>
+                    </div>
+                    <div class="calendar-grid" id="calendarDays"></div>
+                </div>
+                <div class="calendar-sidebar">
+                    <h3><i class="fas fa-list"></i> Events <span id="selectedDateLabel"></span></h3>
+                    <div id="eventsList"></div>
+                    <div class="add-event-form">
+                        <h4 style="color:#888;margin-bottom:10px;"><i class="fas fa-plus"></i> Νέο Event</h4>
+                        <input type="text" id="eventTitle" placeholder="Τίτλος">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><input type="date" id="eventDate"><input type="time" id="eventTime"></div>
+                        <textarea id="eventDesc" placeholder="Περιγραφή..." rows="2"></textarea>
+                        <button class="btn btn-green btn-small" onclick="addEvent()" style="width:100%;"><i class="fas fa-plus"></i> Προσθήκη</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOCS -->
+        <div id="docsPanel" class="panel">
+            <button class="btn" onclick="loadDocs()"><i class="fas fa-sync"></i> Ανανέωση</button>
+            <div id="docsList" class="docs-grid"></div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div id="settingsPanel" class="panel">
+            <div class="settings-section">
+                <h3><i class="fas fa-envelope"></i> Email Auto-Sync</h3>
+                <div class="setting-item">
+                    <div><label>Αυτόματη ενημέρωση</label><small>Κάθε 10 λεπτά</small></div>
+                    <div class="toggle" id="toggleAutoSync" onclick="toggleAutoSync()"></div>
+                </div>
+                <div class="setting-item">
+                    <div><label>Τελευταίο sync</label><small id="settingsLastSync">-</small></div>
+                    <button class="btn btn-blue btn-small" onclick="manualSync()"><i class="fas fa-sync"></i> Sync</button>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3><i class="fas fa-database"></i> Μνήμη & Αποθήκευση</h3>
+                <div class="memory-stats">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>Χρησιμοποιημένη μνήμη</span>
+                        <span id="memoryPercent">0%</span>
+                    </div>
+                    <div class="memory-bar"><div class="memory-bar-fill" id="memoryBar" style="width:0%;"></div></div>
+                    <div class="memory-details">
+                        <div class="memory-item"><i class="fas fa-file-alt"></i><div class="value" id="memDocs">0</div><div class="label">Έγγραφα</div></div>
+                        <div class="memory-item"><i class="fas fa-envelope"></i><div class="value" id="memEmails">0</div><div class="label">Emails</div></div>
+                        <div class="memory-item"><i class="fas fa-sticky-note"></i><div class="value" id="memNotes">0</div><div class="label">Σημειώσεις</div></div>
+                        <div class="memory-item"><i class="fas fa-calendar"></i><div class="value" id="memEvents">0</div><div class="label">Events</div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3><i class="fab fa-google"></i> Google APIs</h3>
+                <div class="setting-item"><div><label>Gmail</label><small id="gmailStatus">-</small></div><span id="gmailIcon"></span></div>
+                <div class="setting-item"><div><label>Calendar</label><small id="calendarStatus">-</small></div><span id="calendarIcon"></span></div>
+                <div class="setting-item"><div><label>Contacts</label><small id="contactsStatus">-</small></div><span id="contactsIcon"></span></div>
+            </div>
+            <div class="settings-section">
+                <h3><i class="fas fa-trash-alt"></i> Διαχείριση Δεδομένων</h3>
+                <div class="setting-item"><div><label>Τοπικά δεδομένα</label><small>Σημειώσεις, Events</small></div><button class="btn btn-red btn-small" onclick="clearLocalData()"><i class="fas fa-trash"></i> Διαγραφή</button></div>
+                <div class="setting-item"><div><label>Reset Token</label><small>Νέο Google login</small></div><button class="btn btn-red btn-small" onclick="resetToken()"><i class="fas fa-redo"></i> Reset</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI ASSISTANT MODAL -->
+    <div class="modal ai-modal" id="aiModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title"><i class="fas fa-magic"></i> AI Assistant</span>
+                <button class="modal-close" onclick="closeAI()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="ai-header">
+                <h2>✨ Πώς μπορώ να βοηθήσω;</h2>
+                <p>Επίλεξε μια ενέργεια ή ρώτησέ με οτιδήποτε</p>
+            </div>
+            <div class="ai-options" id="aiOptions">
+                <div class="ai-option" onclick="aiAction('search')">
+                    <i class="fas fa-search"></i>
+                    <div><h4>🔍 Αναζήτηση</h4><p>Βρες έγγραφα, emails, σημειώσεις</p></div>
+                </div>
+                <div class="ai-option" onclick="aiAction('organize')">
+                    <i class="fas fa-layer-group"></i>
+                    <div><h4>📁 Οργάνωση</h4><p>Ταξινόμηση & κατηγοριοποίηση εγγράφων</p></div>
+                </div>
+                <div class="ai-option" onclick="aiAction('quote')">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <div><h4>💰 Δημιουργία Προσφοράς</h4><p>Σύνταξη προσφοράς με τιμές από RAG</p></div>
+                </div>
+                <div class="ai-option" onclick="aiAction('sync')">
+                    <i class="fas fa-sync-alt"></i>
+                    <div><h4>🔄 Συγχρονισμός</h4><p>Sync emails, calendar, contacts</p></div>
+                </div>
+                <div class="ai-option" onclick="aiAction('help')">
+                    <i class="fas fa-life-ring"></i>
+                    <div><h4>❓ Βοήθεια</h4><p>Πώς να χρησιμοποιήσω την εφαρμογή</p></div>
+                </div>
+            </div>
+            <div class="ai-chat" id="aiChat">
+                <div class="ai-messages" id="aiMessages"></div>
+                <div class="ai-input-row">
+                    <input type="text" id="aiInput" placeholder="Γράψε το ερώτημά σου..." onkeypress="if(event.key==='Enter')sendAI()">
+                    <button class="btn btn-purple" onclick="sendAI()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+                <div class="ai-suggestions" id="aiSuggestions"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HELP MODAL -->
+    <div class="modal" id="helpModal">
+        <div class="modal-content" style="max-width:700px;">
+            <div class="modal-header">
+                <span class="modal-title"><i class="fas fa-question-circle"></i> Βοήθεια</span>
+                <button class="modal-close" onclick="closeHelp()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <h3>Τι κάνει;</h3>
+                <p>Αποθήκευση & αναζήτηση εγγράφων, emails με AI (RAG).</p>
+                <h3>AI Assistant</h3>
+                <p>Πάτα το ✨ για να ρωτήσεις οτιδήποτε ή να δημιουργήσεις προσφορές.</p>
+                <h3>Auto-Sync</h3>
+                <p>Ρυθμίσεις → Ενεργοποίησε για αυτόματο sync emails κάθε 10 λεπτά.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMAIL MODAL -->
+    <div class="modal" id="emailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="emailModalTitle"></span>
+                <button class="modal-close" onclick="closeEmailModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="emailModalBody"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let ws, pendingFiles=[], emailsData=[], selectedEmails=new Set(), contactsData=[], totalDocs=0;
+        let notes = JSON.parse(localStorage.getItem('enercon_notes') || '[]');
+        let events = JSON.parse(localStorage.getItem('enercon_events') || '[]');
+        let settings = JSON.parse(localStorage.getItem('enercon_settings') || '{"autoSync":false}');
+        let currentNoteId = null, currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear(), selectedDate = null;
+        let autoSyncInterval = null, currentAIAction = null;
+
+        // DateTime
+        function updateDateTime() {
+            const now = new Date();
+            const days = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
+            const months = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
+            document.getElementById('currentDate').textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('el-GR');
+        }
+        setInterval(updateDateTime, 1000); updateDateTime();
+
+        // WebSocket
+        function connect() {
+            ws = new WebSocket('ws://localhost:8765');
+            ws.onopen = () => {
+                document.getElementById('statusDot').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                ws.send(JSON.stringify({action:'stats'}));
+                updateAPIStatus(true);
+                if(settings.autoSync) startAutoSync();
+            };
+            ws.onclose = () => {
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                setTimeout(connect, 3000);
+            };
+            ws.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                if(d.action==='search_results') displayResults(d.results);
+                else if(d.action==='stats') { totalDocs=d.data.total_vectors; document.getElementById('statsText').textContent=`| ${totalDocs} docs`; updateMemoryStats(); }
+                else if(d.action==='file_upload_success'){showToast(`Uploaded ${d.count}`);ws.send(JSON.stringify({action:'stats'}))}
+                else if(d.action==='emails_loaded') displayEmails(d.emails);
+                else if(d.action==='email_sync_success'){addSyncLog(d.subject,'success');ws.send(JSON.stringify({action:'stats'}))}
+                else if(d.action==='email_sync_complete'){addSyncLog(`Done! ${d.count}`,'success');showToast(`Synced ${d.count}!`);updateLastSync()}
+                else if(d.action==='list_results') displayDocs(d.docs);
+                else if(d.action==='delete_success'){showToast('Deleted');loadDocs()}
+                else if(d.action==='note_synced') showToast('Note synced!');
+                else if(d.action==='calendar_events') displayGoogleEvents(d.events);
+                else if(d.action==='contacts_loaded') displayContacts(d.contacts);
+                else if(d.action==='error') showToast(d.message,true);
+            };
+        }
+
+        function updateAPIStatus(ok){
+            ['gmail','calendar','contacts'].forEach(api=>{
+                document.getElementById(api+'Status').textContent = ok ? 'Συνδεδεμένο' : 'Error';
+                document.getElementById(api+'Icon').innerHTML = `<i class="fas fa-${ok?'check':'times'}-circle" style="color:${ok?'#27ae60':'#e74c3c'};"></i>`;
+            });
+        }
+
+        function updateMemoryStats() {
+            const maxDocs = 10000; // Pinecone free tier
+            const percent = Math.min(100, (totalDocs / maxDocs) * 100);
+            document.getElementById('memoryPercent').textContent = percent.toFixed(1) + '%';
+            document.getElementById('memoryBar').style.width = percent + '%';
+            document.getElementById('memDocs').textContent = totalDocs;
+            document.getElementById('memNotes').textContent = notes.length;
+            document.getElementById('memEvents').textContent = events.length;
+            // Estimate emails (rough)
+            document.getElementById('memEmails').textContent = Math.floor(totalDocs * 0.3);
+        }
+
+        // Panels
+        function showPanel(n) {
+            document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+            document.getElementById(n+'Panel').classList.add('active');
+            const tab = document.querySelector(`.tab[onclick="showPanel('${n}')"]`);
+            if(tab) tab.classList.add('active');
+            if(n==='docs')loadDocs();
+            if(n==='notes')renderNotes();
+            if(n==='calendar')renderCalendar();
+            if(n==='settings'){loadSettings();updateMemoryStats();}
+        }
+        function showHelp(){document.getElementById('helpModal').classList.add('active')}
+        function closeHelp(){document.getElementById('helpModal').classList.remove('active')}
+
+        // AI Assistant
+        function showAI() { document.getElementById('aiModal').classList.add('active'); document.getElementById('aiOptions').style.display='grid'; document.getElementById('aiChat').classList.remove('active'); }
+        function closeAI() { document.getElementById('aiModal').classList.remove('active'); }
+        
+        function aiAction(action) {
+            currentAIAction = action;
+            document.getElementById('aiOptions').style.display = 'none';
+            document.getElementById('aiChat').classList.add('active');
+            document.getElementById('aiMessages').innerHTML = '';
+            document.getElementById('aiSuggestions').innerHTML = '';
+            
+            let msg = '', suggestions = [];
+            if(action === 'search') {
+                msg = 'Τι θέλεις να αναζητήσεις; Μπορώ να ψάξω σε έγγραφα, emails, σημειώσεις...';
+                suggestions = ['Τιμές inverter', 'Emails από Big Solar', 'Προσφορές panels'];
+            } else if(action === 'organize') {
+                msg = 'Θέλεις να οργανώσω τα έγγραφά σου; Μπορώ να:\n• Ταξινομήσω κατά κατηγορία\n• Βρω διπλότυπα\n• Προτείνω tags';
+                suggestions = ['Ταξινόμηση όλων', 'Βρες διπλότυπα', 'Προτείνε tags'];
+            } else if(action === 'quote') {
+                msg = 'Ας δημιουργήσουμε μια προσφορά! Πες μου:\n• Τι εξοπλισμό θέλεις;\n• Πόσα kW;\n• Όνομα πελάτη;';
+                suggestions = ['5kW οικιακό', '10kW επαγγελματικό', '20kW βιομηχανικό'];
+            } else if(action === 'sync') {
+                msg = 'Τι θέλεις να συγχρονίσω;\n• Emails (τελευταίες 7 ημέρες)\n• Google Calendar\n• Επαφές';
+                suggestions = ['Sync Emails', 'Sync Calendar', 'Sync Επαφές', 'Sync Όλα'];
+            } else if(action === 'help') {
+                msg = 'Ρώτα με οτιδήποτε για την εφαρμογή!\n\n📌 **Βασικές λειτουργίες:**\n• Αναζήτηση - Βρες οτιδήποτε\n• Upload - Ανέβασε PDF/Excel\n• Email - Φέρε emails στο RAG\n• Σημειώσεις - Κράτα notes\n• Ημερολόγιο - Events & Google sync';
+                suggestions = ['Πώς ανεβάζω αρχεία;', 'Πώς συνδέω Gmail;', 'Τι είναι το RAG;'];
+            }
+            
+            addAIMessage(msg, 'assistant');
+            suggestions.forEach(s => {
+                document.getElementById('aiSuggestions').innerHTML += `<span class="ai-suggestion" onclick="document.getElementById('aiInput').value='${s}';sendAI()">${s}</span>`;
+            });
+        }
+        
+        function addAIMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = 'ai-message ' + type;
+            div.innerHTML = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            document.getElementById('aiMessages').appendChild(div);
+            document.getElementById('aiMessages').scrollTop = 99999;
+        }
+        
+        function sendAI() {
+            const input = document.getElementById('aiInput');
+            const text = input.value.trim();
+            if(!text) return;
+            
+            addAIMessage(text, 'user');
+            input.value = '';
+            document.getElementById('aiSuggestions').innerHTML = '';
+            
+            // Process AI response
+            setTimeout(() => {
+                let response = '';
+                const lower = text.toLowerCase();
+                
+                if(currentAIAction === 'search' || lower.includes('ψάξε') || lower.includes('βρες')) {
+                    response = `🔍 Αναζητώ "${text}"...\n\nΠήγαινε στην καρτέλα Αναζήτηση ή πάτα Enter εδώ για αποτελέσματα.`;
+                    // Auto search
+                    document.getElementById('searchInput').value = text;
+                    doSearch();
+                } else if(currentAIAction === 'quote' || lower.includes('προσφορά')) {
+                    response = `💰 Για προσφορά ${text}:\n\n1. Ψάχνω τιμές στο RAG...\n2. Βρήκα σχετικά προϊόντα\n3. Πήγαινε στις Σημειώσεις για να φτιάξω draft\n\n*Θέλεις να συνεχίσω;*`;
+                } else if(lower.includes('sync') || lower.includes('συγχρον')) {
+                    if(lower.includes('email')) { fetchEmails(); response = '📧 Φορτώνω emails...'; }
+                    else if(lower.includes('calendar')) { fetchGoogleCalendar(); response = '📅 Sync Calendar...'; }
+                    else if(lower.includes('επαφ')) { fetchContacts(); response = '👥 Φορτώνω επαφές...'; }
+                    else { fetchEmails(); fetchGoogleCalendar(); fetchContacts(); response = '🔄 Sync όλων σε εξέλιξη!'; }
+                } else if(lower.includes('ανεβ') || lower.includes('upload')) {
+                    response = '📤 Για να ανεβάσεις αρχεία:\n1. Πήγαινε στην καρτέλα **Upload**\n2. Σύρε τα αρχεία ή κάνε κλικ\n3. Επίλεξε κατηγορία\n4. Πάτα Upload!';
+                } else if(lower.includes('gmail') || lower.includes('google')) {
+                    response = '🔑 Για σύνδεση Gmail:\n1. Google Cloud Console\n2. Ενεργοποίησε Gmail API\n3. Δημιούργησε OAuth Desktop\n4. Κατέβασε credentials.json\n5. Βάλτο στον φάκελο';
+                } else if(lower.includes('rag')) {
+                    response = '🧠 **RAG** = Retrieval Augmented Generation\n\nΑποθηκεύει τα έγγραφά σου σε vectors και τα αναζητά με AI. Έτσι μπορείς να βρεις σχετικό περιεχόμενο ακόμα κι αν δεν θυμάσαι ακριβώς τι έγραφε!';
+                } else {
+                    response = `Κατάλαβα! "${text}"\n\nΜπορώ να σε βοηθήσω με:\n• 🔍 Αναζήτηση\n• 📁 Οργάνωση\n• 💰 Προσφορές\n• 🔄 Sync\n\nΤι θέλεις να κάνουμε;`;
+                }
+                
+                addAIMessage(response, 'assistant');
+            }, 500);
+        }
+
+        // Auto-Sync
+        function toggleAutoSync(){settings.autoSync=!settings.autoSync;localStorage.setItem('enercon_settings',JSON.stringify(settings));document.getElementById('toggleAutoSync').classList.toggle('active',settings.autoSync);document.getElementById('autoSyncBadge').classList.toggle('active',settings.autoSync);if(settings.autoSync)startAutoSync();else stopAutoSync();showToast(settings.autoSync?'Auto-sync ON':'Auto-sync OFF')}
+        function startAutoSync(){if(autoSyncInterval)return;autoSyncInterval=setInterval(()=>{const d=new Date();d.setDate(d.getDate()-7);ws.send(JSON.stringify({action:'fetch_emails',query:`category:primary has:attachment after:${d.toISOString().split('T')[0]}`,max_results:20}))},10*60*1000);document.getElementById('autoSyncBadge').classList.add('active')}
+        function stopAutoSync(){if(autoSyncInterval){clearInterval(autoSyncInterval);autoSyncInterval=null}document.getElementById('autoSyncBadge').classList.remove('active')}
+        function manualSync(){fetchEmails();showToast('Syncing...')}
+        function updateLastSync(){const t=new Date().toLocaleTimeString('el-GR');document.getElementById('lastSyncTime').textContent=`Τελευταίο: ${t}`;document.getElementById('settingsLastSync').textContent=t;settings.lastSync=Date.now();localStorage.setItem('enercon_settings',JSON.stringify(settings))}
+
+        // Search
+        function doSearch(){const q=document.getElementById('searchInput').value.trim();if(!q||!ws)return;document.getElementById('results').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'search',query:q,top_k:15}))}
+        function displayResults(r){document.getElementById('resultsCount').textContent=r.length?`${r.length} αποτελέσματα`:'';if(!r.length){document.getElementById('results').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}document.getElementById('results').innerHTML=r.map(x=>`<div class="result-card"><div class="result-header"><span class="result-title">${x.title}</span><span class="result-score"><i class="fas fa-chart-line"></i> ${x.score}</span></div><span class="result-category ${x.category}"><i class="fas fa-tag"></i> ${x.category}</span><div class="result-text">${x.text}</div></div>`).join('')}
+
+        // Email
+        function fetchEmails(){const cat=document.getElementById('emailCategory').value,days=document.getElementById('emailDays').value,filt=document.getElementById('emailFilter').value,search=document.getElementById('emailSearch').value;document.getElementById('emailList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';let q='';if(cat==='primary')q+='category:primary ';else if(cat==='updates')q+='category:updates ';else if(cat==='sent')q+='in:sent ';if(filt==='attachments')q+='has:attachment ';if(search)q+=search+' ';const d=new Date();d.setDate(d.getDate()-parseInt(days));q+=`after:${d.toISOString().split('T')[0]}`;ws.send(JSON.stringify({action:'fetch_emails',query:q.trim(),max_results:50}))}
+        function displayEmails(emails){emailsData=emails;selectedEmails.clear();updateSelectedCount();if(!emails.length){document.getElementById('emailList').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}document.getElementById('emailList').innerHTML=emails.map((e,i)=>`<div class="email-item" onclick="showEmailPreview(${i})"><input type="checkbox" class="email-checkbox" id="email-${i}" onclick="event.stopPropagation();toggleEmailCheckbox(${i})"><div><div style="color:#fff;">${e.subject}</div><div style="color:#888;font-size:0.8em;margin-top:4px;"><i class="fas fa-user"></i> ${e.from} | <i class="fas fa-calendar"></i> ${e.date}${e.attachments?` | <span style="background:#e74c3c;padding:2px 6px;border-radius:8px;font-size:0.7em;"><i class="fas fa-paperclip"></i> ${e.attachments}</span>`:''}</div></div><span style="padding:4px 10px;border-radius:12px;font-size:0.75em;background:${e.category==='primary'?'#27ae60':e.category==='sent'?'#9b59b6':'#3498db'};">${e.categoryLabel}</span></div>`).join('')}
+        function toggleEmailCheckbox(i){selectedEmails.has(i)?selectedEmails.delete(i):selectedEmails.add(i);updateSelectedCount()}
+        function toggleSelectAll(){const s=document.getElementById('selectAll').checked;emailsData.forEach((_,i)=>{s?selectedEmails.add(i):selectedEmails.delete(i);const cb=document.getElementById(`email-${i}`);if(cb)cb.checked=s});updateSelectedCount()}
+        function updateSelectedCount(){document.getElementById('selectedCount').textContent=selectedEmails.size;document.getElementById('btnSync').disabled=!selectedEmails.size}
+        function showEmailPreview(i){const e=emailsData[i];document.getElementById('emailModalTitle').innerHTML=`<i class="fas fa-envelope"></i> ${e.subject}`;document.getElementById('emailModalBody').innerHTML=`<p><b>Από:</b> ${e.from}</p><p><b>Ημ:</b> ${e.date}</p><hr style="border-color:#444;margin:15px 0;"><div style="background:#1a1a2e;padding:15px;border-radius:8px;">${e.snippet}</div>`;document.getElementById('emailModal').classList.add('active')}
+        function closeEmailModal(){document.getElementById('emailModal').classList.remove('active')}
+        function syncSelectedEmails(){if(!selectedEmails.size)return;document.getElementById('syncStatus').style.display='block';document.getElementById('syncLog').innerHTML='';addSyncLog(`Sync ${selectedEmails.size}...`,'info');ws.send(JSON.stringify({action:'sync_emails',emails:Array.from(selectedEmails).map(i=>emailsData[i])}))}
+        function addSyncLog(m,t='info'){const l=document.getElementById('syncLog'),e=document.createElement('div');e.className=t;e.innerHTML=`<i class="fas fa-${t==='success'?'check':'info'}-circle"></i> ${m}`;l.appendChild(e);l.scrollTop=l.scrollHeight}
+
+        // Contacts
+        function fetchContacts(){document.getElementById('contactsList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'fetch_contacts'}))}
+        function displayContacts(contacts){contactsData=contacts;if(!contacts.length){document.getElementById('contactsList').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}renderContacts(contacts)}
+        function renderContacts(list){document.getElementById('contactsList').innerHTML=list.map(c=>`<div class="contact-card"><h3><i class="fas fa-user"></i> ${c.name}</h3><div class="contact-info">${c.phones.map(p=>`<span><i class="fas fa-phone"></i> <a href="tel:${p}">${p}</a></span>`).join('')}${c.emails.map(e=>`<span><i class="fas fa-envelope"></i> <a href="mailto:${e}">${e}</a></span>`).join('')}${c.organization?`<span><i class="fas fa-building"></i> ${c.organization}</span>`:''}</div></div>`).join('')}
+        function filterContacts(){const q=document.getElementById('contactsSearch').value.toLowerCase();renderContacts(contactsData.filter(c=>c.name.toLowerCase().includes(q)||c.emails.some(e=>e.toLowerCase().includes(q))||c.phones.some(p=>p.includes(q))))}
+
+        // Notes
+        function renderNotes(){document.getElementById('notesList').innerHTML=notes.map(n=>`<div class="note-item ${currentNoteId===n.id?'active':''}" onclick="loadNote('${n.id}')"><h4 style="margin-bottom:5px;">${n.title||'Χωρίς τίτλο'}</h4><small style="color:#888;">${new Date(n.updated).toLocaleDateString('el-GR')}</small></div>`).join('')||'<p style="color:#888;text-align:center;">Καμία</p>'}
+        function newNote(){currentNoteId=Date.now().toString();document.getElementById('noteTitle').value='';document.getElementById('noteContent').value='';renderNotes()}
+        function loadNote(id){const n=notes.find(x=>x.id===id);if(n){currentNoteId=id;document.getElementById('noteTitle').value=n.title;document.getElementById('noteContent').value=n.content;renderNotes()}}
+        function saveNote(){const t=document.getElementById('noteTitle').value.trim(),c=document.getElementById('noteContent').value.trim();if(!t&&!c)return showToast('Γράψε κάτι',true);const idx=notes.findIndex(n=>n.id===currentNoteId);const note={id:currentNoteId,title:t,content:c,updated:Date.now()};if(idx>=0)notes[idx]=note;else notes.unshift(note);localStorage.setItem('enercon_notes',JSON.stringify(notes));renderNotes();showToast('Saved!');updateMemoryStats()}
+        function deleteNote(){if(!currentNoteId||!confirm('Διαγραφή;'))return;notes=notes.filter(n=>n.id!==currentNoteId);localStorage.setItem('enercon_notes',JSON.stringify(notes));currentNoteId=null;document.getElementById('noteTitle').value='';document.getElementById('noteContent').value='';renderNotes();showToast('Deleted');updateMemoryStats()}
+        function syncNoteToRAG(){const t=document.getElementById('noteTitle').value.trim(),c=document.getElementById('noteContent').value.trim();if(!c)return;ws.send(JSON.stringify({action:'sync_note',title:t||'Σημείωση',content:c}))}
+
+        // Calendar
+        function renderCalendar(){const months=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];document.getElementById('calendarMonth').textContent=`${months[currentMonth]} ${currentYear}`;const firstDay=new Date(currentYear,currentMonth,1).getDay(),daysInMonth=new Date(currentYear,currentMonth+1,0).getDate(),today=new Date(),todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;if(!selectedDate)selectedDate=todayStr;document.getElementById('eventDate').value=selectedDate;let html='';for(let i=0;i<firstDay;i++)html+='<div class="calendar-day" style="opacity:0.3;"></div>';for(let d=1;d<=daysInMonth;d++){const dateStr=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,isToday=dateStr===todayStr,isSelected=dateStr===selectedDate,hasEvent=events.some(e=>e.date===dateStr);html+=`<div class="calendar-day ${isToday?'today':''} ${isSelected?'selected':''} ${hasEvent?'has-event':''}" onclick="selectDate('${dateStr}')">${d}</div>`}document.getElementById('calendarDays').innerHTML=html;renderEvents()}
+        function prevMonth(){if(currentMonth===0){currentMonth=11;currentYear--}else currentMonth--;renderCalendar()}
+        function nextMonth(){if(currentMonth===11){currentMonth=0;currentYear++}else currentMonth++;renderCalendar()}
+        function goToday(){const t=new Date();currentMonth=t.getMonth();currentYear=t.getFullYear();selectedDate=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;renderCalendar()}
+        function selectDate(date){selectedDate=date;document.getElementById('eventDate').value=date;renderCalendar()}
+        function renderEvents(){const dateEvents=events.filter(e=>e.date===selectedDate).sort((a,b)=>(a.time||'').localeCompare(b.time||''));document.getElementById('selectedDateLabel').textContent=selectedDate?` - ${selectedDate.split('-').reverse().join('/')}`:'';document.getElementById('eventsList').innerHTML=dateEvents.length?dateEvents.map(e=>`<div class="event-item ${e.googleId?'google':''}"><button class="event-delete" onclick="deleteEvent('${e.id}')"><i class="fas fa-times"></i></button><h4 style="padding-right:25px;">${e.title}${e.googleId?'<span style="font-size:0.7em;padding:2px 6px;border-radius:4px;background:#4285f4;margin-left:5px;">Google</span>':''}</h4><p style="color:#888;font-size:0.85em;"><i class="fas fa-clock"></i> ${e.time||'Όλη μέρα'}</p>${e.desc?`<p style="color:#888;font-size:0.85em;">${e.desc}</p>`:''}</div>`).join(''):'<p style="color:#888;">Κανένα</p>'}
+        function addEvent(){const t=document.getElementById('eventTitle').value.trim(),date=document.getElementById('eventDate').value,time=document.getElementById('eventTime').value,desc=document.getElementById('eventDesc').value.trim();if(!t||!date)return showToast('Τίτλος & ημερομηνία',true);events.push({id:Date.now().toString(),title:t,date,time,desc});localStorage.setItem('enercon_events',JSON.stringify(events));document.getElementById('eventTitle').value='';document.getElementById('eventTime').value='';document.getElementById('eventDesc').value='';renderCalendar();showToast('Added!');updateMemoryStats()}
+        function deleteEvent(id){if(!confirm('Διαγραφή;'))return;events=events.filter(e=>e.id!==id);localStorage.setItem('enercon_events',JSON.stringify(events));renderCalendar();showToast('Deleted');updateMemoryStats()}
+        function fetchGoogleCalendar(){ws.send(JSON.stringify({action:'fetch_calendar'}));showToast('Syncing...')}
+        function displayGoogleEvents(gEvents){let added=0;gEvents.forEach(e=>{if(!events.some(x=>x.googleId===e.id)){events.push({id:Date.now().toString()+Math.random(),googleId:e.id,title:e.summary||'Event',date:e.start?.date||(e.start?.dateTime||'').split('T')[0],time:(e.start?.dateTime||'').split('T')[1]?.substring(0,5)||'',desc:e.description||''});added++}});localStorage.setItem('enercon_events',JSON.stringify(events));renderCalendar();showToast(`Synced ${added}!`);updateMemoryStats()}
+
+        // Upload
+        const uz=document.getElementById('uploadZone'),fi=document.getElementById('fileInput');uz.onclick=()=>fi.click();uz.ondragover=e=>{e.preventDefault();uz.style.borderColor='#f39c12'};uz.ondragleave=()=>uz.style.borderColor='#444';uz.ondrop=e=>{e.preventDefault();uz.style.borderColor='#444';handleFiles(e.dataTransfer.files)};fi.onchange=()=>handleFiles(fi.files);
+        function handleFiles(files){for(const f of files){pendingFiles.push(f);document.getElementById('fileList').innerHTML+=`<div class="file-item"><span><i class="fas fa-file"></i> ${f.name}</span><span style="color:#888;">Ready</span></div>`}}
+        async function uploadAllFiles(){if(!ws)return;const cat=document.getElementById('uploadCategory').value;for(const f of pendingFiles){const r=new FileReader();r.onload=()=>ws.send(JSON.stringify({action:'upload_file',file_data:r.result.split(',')[1],filename:f.name,category:cat}));r.readAsDataURL(f);await new Promise(r=>setTimeout(r,500))}pendingFiles=[];document.getElementById('fileList').innerHTML=''}
+
+        // Docs
+        function loadDocs(){if(!ws)return;document.getElementById('docsList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'list'}))}
+        function displayDocs(docs){document.getElementById('docsList').innerHTML=docs.map(d=>`<div class="doc-card"><span class="result-category ${d.category}"><i class="fas fa-tag"></i> ${d.category}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.title}</span><button class="delete-btn" onclick="deleteDoc('${d.id}')"><i class="fas fa-trash"></i></button></div>`).join('')}
+        function deleteDoc(id){if(confirm('Διαγραφή;'))ws.send(JSON.stringify({action:'delete',doc_id:id}))}
+
+        // Settings
+        function loadSettings(){document.getElementById('toggleAutoSync').classList.toggle('active',settings.autoSync);if(settings.lastSync)document.getElementById('settingsLastSync').textContent=new Date(settings.lastSync).toLocaleTimeString('el-GR')}
+        function resetToken(){if(confirm('Reset token;'))showToast('Delete token.pickle & restart')}
+        function clearLocalData(){if(confirm('Διαγραφή όλων;')){localStorage.clear();notes=[];events=[];settings={autoSync:false};showToast('Cleared!');updateMemoryStats()}}
+
+        // Utils
+        function showToast(m,err=false){const t=document.getElementById('toast');t.innerHTML=`<i class="fas fa-${err?'exclamation-triangle':'check-circle'}"></i> ${m}`;t.style.background=err?'#e74c3c':'#27ae60';t.style.display='block';setTimeout(()=>t.style.display='none',3000)}
+
+        // Init
+        document.getElementById('searchInput').onkeypress=e=>{if(e.key==='Enter')doSearch()};
+        document.getElementById('helpModal').onclick=e=>{if(e.target.id==='helpModal')closeHelp()};
+        document.getElementById('emailModal').onclick=e=>{if(e.target.id==='emailModal')closeEmailModal()};
+        document.getElementById('aiModal').onclick=e=>{if(e.target.id==='aiModal')closeAI()};
+        connect();
+        if(settings.autoSync)document.getElementById('autoSyncBadge').classList.add('active');
+    </script>
+</body>
+</html>
+    </div>
+
+    <!-- EMAIL MODAL -->
+    <div class="modal" id="emailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="emailModalTitle"></span>
+                <button class="modal-close" onclick="closeEmailModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="emailModalBody"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let ws, pendingFiles=[], emailsData=[], selectedEmails=new Set(), contactsData=[], totalDocs=0;
+        let notes = JSON.parse(localStorage.getItem('enercon_notes') || '[]');
+        let events = JSON.parse(localStorage.getItem('enercon_events') || '[]');
+        let settings = JSON.parse(localStorage.getItem('enercon_settings') || '{"autoSync":false,"useRAG":true}');
+        let prompts = JSON.parse(localStorage.getItem('enercon_prompts') || '{}');
+        let currentNoteId = null, currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear(), selectedDate = null;
+        let autoSyncInterval = null, currentAIAction = null, selectedTemplate = null;
+
+        const defaultPrompts = {
+            search: 'Βοήθησε με την αναζήτηση προϊόντων και τιμών. Χρησιμοποίησε το RAG context για ακριβείς πληροφορίες.',
+            quote: 'Δημιούργησε επαγγελματική προσφορά φωτοβολταϊκού. Συμπερίλαβε προϊόντα, τιμές, εγγύηση.',
+            email: 'Σύνταξε επαγγελματικό email. Τόνος φιλικός αλλά επαγγελματικός.',
+            general: 'Είσαι ο AI βοηθός του Enercon. Βοηθάς με φωτοβολταϊκά, τιμές, εγκαταστάσεις.'
+        };
+
+        const emailTemplates = {
+            quote: { name: 'Αποστολή Προσφοράς', subject: 'Προσφορά Φωτοβολταϊκού - {customer_name}', body: 'Αγαπητέ/ή {customer_name},\n\nΣας αποστέλλουμε την προσφορά για φωτοβολταϊκό σύστημα.\n\nΠεριλαμβάνει:\n{items}\n\nΣύνολο: €{total}\n\nΙσχύει 30 ημέρες.\n\nΜε εκτίμηση,\nEnercon Team' },
+            followup: { name: 'Follow-up', subject: 'Re: Προσφορά - Ενημέρωση', body: 'Αγαπητέ/ή {customer_name},\n\nΕπανερχόμαστε για την προσφορά της {date}.\n\nΈχετε απορίες;\n\nΜε εκτίμηση,\nEnercon Team' },
+            thankyou: { name: 'Ευχαριστήριο', subject: 'Ευχαριστούμε!', body: 'Αγαπητέ/ή {customer_name},\n\nΣας ευχαριστούμε για την εμπιστοσύνη!\n\nΕγκατάσταση: {date}\nΤεχνικός: {technician}\n\nΜε εκτίμηση,\nEnercon Team' },
+            reminder: { name: 'Συντήρηση', subject: 'Υπενθύμιση Συντήρησης', body: 'Αγαπητέ/ή {customer_name},\n\nΠλησιάζει η ετήσια συντήρηση.\n\n• Μέγιστη απόδοση\n• Παράταση εγγύησης\n• Πρόληψη βλαβών\n\nΚαλέστε: 210 1234567\n\nΜε εκτίμηση,\nEnercon Team' }
+        };
+
+        // DateTime
+        function updateDateTime() {
+            const now = new Date();
+            const days = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
+            const months = ['Ιαν','Φεβ','Μαρ','Απρ','Μαϊ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+            document.getElementById('currentDate').textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('el-GR');
+        }
+        setInterval(updateDateTime, 1000); updateDateTime();
+
+        // WebSocket
+        function connect() {
+            ws = new WebSocket('ws://localhost:8765');
+            ws.onopen = () => {
+                document.getElementById('statusDot').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                ws.send(JSON.stringify({action:'stats'}));
+                if(settings.claudeKey) ws.send(JSON.stringify({action:'set_claude_key', api_key: settings.claudeKey}));
+                if(settings.autoSync) startAutoSync();
+            };
+            ws.onclose = () => {
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                setTimeout(connect, 3000);
+            };
+            ws.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                if(d.action==='search_results') displayResults(d.results);
+                else if(d.action==='stats') { totalDocs=d.data.total_vectors; document.getElementById('statsText').textContent=`| ${totalDocs} docs`; updateMemoryStats(); }
+                else if(d.action==='file_upload_success'){showToast(`Uploaded ${d.count}`);ws.send(JSON.stringify({action:'stats'}))}
+                else if(d.action==='emails_loaded') displayEmails(d.emails);
+                else if(d.action==='email_sync_success') addSyncLog(d.subject,'success');
+                else if(d.action==='email_sync_complete'){addSyncLog(`Done! ${d.count}`,'success');showToast(`Synced ${d.count}!`)}
+                else if(d.action==='list_results') displayDocs(d.docs);
+                else if(d.action==='delete_success'){showToast('Deleted');loadDocs()}
+                else if(d.action==='note_synced') showToast('Note synced!');
+                else if(d.action==='calendar_events') displayGoogleEvents(d.events);
+                else if(d.action==='contacts_loaded') displayContacts(d.contacts);
+                else if(d.action==='ai_response') displayAIResponse(d.response);
+                else if(d.action==='claude_key_set') showToast(d.success?'Claude API OK!':'Claude Error',!d.success);
+                else if(d.action==='pdf_generated') handlePDF(d);
+                else if(d.action==='error') showToast(d.message,true);
+            };
+        }
+
+        function updateMemoryStats() {
+            const maxDocs = 10000;
+            const percent = Math.min(100, (totalDocs / maxDocs) * 100);
+            document.getElementById('memoryPercent').textContent = percent.toFixed(1) + '%';
+            document.getElementById('memoryBar').style.width = percent + '%';
+            document.getElementById('memDocs').textContent = totalDocs;
+            document.getElementById('memNotes').textContent = notes.length;
+            document.getElementById('memEvents').textContent = events.length;
+            document.getElementById('memEmails').textContent = Math.floor(totalDocs * 0.3);
+        }
+
+        // Panels
+        function showPanel(n) {
+            document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+            document.getElementById(n+'Panel').classList.add('active');
+            const tab = document.querySelector(`.tab[onclick="showPanel('${n}')"]`);
+            if(tab) tab.classList.add('active');
+            if(n==='docs')loadDocs();
+            if(n==='notes')renderNotes();
+            if(n==='calendar')renderCalendar();
+            if(n==='settings'){loadSettings();updateMemoryStats();}
+        }
+        function showHelp(){document.getElementById('helpModal').classList.add('active')}
+        function closeHelp(){document.getElementById('helpModal').classList.remove('active')}
+
+        // AI Modal
+        function showAI() { 
+            document.getElementById('aiModal').classList.add('active'); 
+            document.getElementById('quoteDate').value = new Date().toISOString().split('T')[0];
+            loadPrompts();
+        }
+        function closeAI() { document.getElementById('aiModal').classList.remove('active'); }
+        
+        function showAITab(tab) {
+            document.querySelectorAll('.ai-tab').forEach(t=>t.classList.remove('active'));
+            document.querySelectorAll('.ai-panel').forEach(p=>p.classList.remove('active'));
+            event.target.closest('.ai-tab').classList.add('active');
+            document.getElementById('aiPanel'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+        }
+
+        function startAIChat(action) {
+            currentAIAction = action;
+            document.getElementById('aiOptions').style.display = 'none';
+            document.getElementById('aiChatBox').style.display = 'block';
+            document.getElementById('aiMessages').innerHTML = '';
+            document.getElementById('aiSuggestions').innerHTML = '';
+            
+            let msg = '', suggestions = [];
+            if(action === 'search') { msg = 'Τι θέλεις να αναζητήσεις;'; suggestions = ['Τιμές inverter', 'Panels 500W', 'Μπαταρίες']; }
+            else if(action === 'quote') { msg = 'Ας φτιάξουμε προσφορά! Πες μου:\n• Τι εξοπλισμό;\n• Πόσα kW;\n• Πελάτης;'; suggestions = ['5kW οικιακό', '10kW επαγγελματικό']; }
+            else if(action === 'email') { msg = 'Τι email θέλεις να γράψω;'; suggestions = ['Προσφορά', 'Follow-up', 'Ευχαριστήριο']; }
+            else if(action === 'help') { msg = 'Ρώτα με για την εφαρμογή!'; suggestions = ['Πώς ανεβάζω;', 'Τι είναι RAG;', 'Πώς φτιάχνω PDF;']; }
+            
+            addAIMessage(msg, 'assistant');
+            suggestions.forEach(s => {
+                document.getElementById('aiSuggestions').innerHTML += `<span class="ai-suggestion" onclick="document.getElementById('aiInput').value='${s}';sendAI()">${s}</span>`;
+            });
+        }
+
+        function addAIMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = 'ai-message ' + type;
+            div.innerHTML = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            document.getElementById('aiMessages').appendChild(div);
+            document.getElementById('aiMessages').scrollTop = 99999;
+        }
+
+        function sendAI() {
+            const input = document.getElementById('aiInput');
+            const text = input.value.trim();
+            if(!text || !ws) return;
+            
+            addAIMessage(text, 'user');
+            input.value = '';
+            document.getElementById('aiSuggestions').innerHTML = '';
+            
+            addAIMessage('Σκέφτομαι...', 'assistant loading');
+            
+            ws.send(JSON.stringify({
+                action: 'ai_chat',
+                message: text,
+                ai_action: currentAIAction,
+                settings: { useRAG: settings.useRAG }
+            }));
+        }
+
+        function displayAIResponse(response) {
+            const msgs = document.getElementById('aiMessages');
+            const loading = msgs.querySelector('.loading');
+            if(loading) loading.remove();
+            addAIMessage(response, 'assistant');
+        }
+
+        // Quote Builder
+        function addQuoteItem() {
+            const html = `<div class="quote-item">
+                <input type="text" placeholder="Περιγραφή" class="item-name">
+                <input type="number" placeholder="Qty" class="item-qty" value="1" onchange="calcTotal()">
+                <input type="number" placeholder="€" class="item-price" onchange="calcTotal()">
+                <button class="remove-item" onclick="this.parentElement.remove();calcTotal()"><i class="fas fa-times"></i></button>
+            </div>`;
+            document.getElementById('quoteItems').insertAdjacentHTML('beforeend', html);
+        }
+
+        function calcTotal() {
+            let total = 0;
+            document.querySelectorAll('.quote-item').forEach(item => {
+                const qty = parseFloat(item.querySelector('.item-qty').value) || 0;
+                const price = parseFloat(item.querySelector('.item-price').value) || 0;
+                total += qty * price;
+            });
+            document.getElementById('quoteTotal').textContent = total.toFixed(2);
+        }
+
+        function aiGenerateQuote() {
+            const name = document.getElementById('customerName').value;
+            if(!name) return showToast('Βάλε όνομα πελάτη', true);
+            addAIMessage('Ψάχνω τιμές και δημιουργώ προσφορά...', 'assistant');
+            ws.send(JSON.stringify({
+                action: 'ai_chat',
+                message: `Δημιούργησε προσφορά για ${name}. Πρότεινε προϊόντα και τιμές.`,
+                ai_action: 'quote',
+                settings: { useRAG: true }
+            }));
+        }
+
+        function generatePDF() {
+            const items = [];
+            document.querySelectorAll('.quote-item').forEach(item => {
+                const name = item.querySelector('.item-name').value;
+                const qty = parseFloat(item.querySelector('.item-qty').value) || 1;
+                const price = parseFloat(item.querySelector('.item-price').value) || 0;
+                if(name) items.push({ name, qty, price });
+            });
+            
+            if(!items.length) return showToast('Πρόσθεσε προϊόντα', true);
+            
+            ws.send(JSON.stringify({
+                action: 'generate_pdf',
+                quote_data: {
+                    number: document.getElementById('quoteNumber').value || '001',
+                    date: document.getElementById('quoteDate').value,
+                    customer_name: document.getElementById('customerName').value,
+                    customer_email: document.getElementById('customerEmail').value,
+                    customer_phone: document.getElementById('customerPhone').value,
+                    items: items,
+                    notes: document.getElementById('quoteNotes').value
+                }
+            }));
+            showToast('Δημιουργία PDF...');
+        }
+
+        function handlePDF(data) {
+            if(data.success) {
+                const link = document.createElement('a');
+                link.href = 'data:application/pdf;base64,' + data.data;
+                link.download = data.filename;
+                link.click();
+                showToast('PDF έτοιμο!');
+            } else {
+                showToast('PDF Error: ' + data.error, true);
+            }
+        }
+
+        // Email Templates
+        function selectTemplate(id) {
+            selectedTemplate = id;
+            const t = emailTemplates[id];
+            document.getElementById('templatePreview').style.display = 'block';
+            document.getElementById('templateName').textContent = t.name;
+            document.getElementById('templateSubject').textContent = '📧 ' + t.subject;
+            document.getElementById('templateBody').textContent = t.body;
+        }
+
+        function copyTemplate() {
+            if(!selectedTemplate) return;
+            const t = emailTemplates[selectedTemplate];
+            navigator.clipboard.writeText(t.subject + '\n\n' + t.body);
+            showToast('Αντιγράφηκε!');
+        }
+
+        function editTemplateWithAI() {
+            if(!selectedTemplate) return;
+            showAITab('chat');
+            startAIChat('email');
+            document.getElementById('aiInput').value = 'Επεξεργάσου το template: ' + emailTemplates[selectedTemplate].name;
+        }
+
+        // Prompts
+        function loadPrompts() {
+            const saved = JSON.parse(localStorage.getItem('enercon_prompts') || '{}');
+            document.getElementById('promptSearch').value = saved.search || defaultPrompts.search;
+            document.getElementById('promptQuote').value = saved.quote || defaultPrompts.quote;
+            document.getElementById('promptEmail').value = saved.email || defaultPrompts.email;
+            document.getElementById('promptGeneral').value = saved.general || defaultPrompts.general;
+        }
+
+        function savePrompts() {
+            const p = {
+                search: document.getElementById('promptSearch').value,
+                quote: document.getElementById('promptQuote').value,
+                email: document.getElementById('promptEmail').value,
+                general: document.getElementById('promptGeneral').value
+            };
+            localStorage.setItem('enercon_prompts', JSON.stringify(p));
+            showToast('Prompts αποθηκεύτηκαν!');
+        }
+
+        function resetPrompt(type) {
+            document.getElementById('prompt' + type.charAt(0).toUpperCase() + type.slice(1)).value = defaultPrompts[type];
+        }
+
+        // Settings
+        function saveClaudeKey() {
+            const key = document.getElementById('claudeApiKey').value;
+            settings.claudeKey = key;
+            localStorage.setItem('enercon_settings', JSON.stringify(settings));
+            ws.send(JSON.stringify({action:'set_claude_key', api_key: key}));
+        }
+
+        function toggleSetting(key) {
+            settings[key] = !settings[key];
+            localStorage.setItem('enercon_settings', JSON.stringify(settings));
+            const el = document.getElementById('toggle' + key.charAt(0).toUpperCase() + key.slice(1));
+            if(el) el.classList.toggle('active', settings[key]);
+        }
+
+        function loadSettings() {
+            document.getElementById('toggleAutoSync').classList.toggle('active', settings.autoSync);
+            document.getElementById('toggleUseRAG').classList.toggle('active', settings.useRAG !== false);
+            if(settings.claudeKey) document.getElementById('claudeApiKey').value = settings.claudeKey;
+        }
+
+        // Auto-Sync
+        function toggleAutoSync(){settings.autoSync=!settings.autoSync;localStorage.setItem('enercon_settings',JSON.stringify(settings));document.getElementById('toggleAutoSync').classList.toggle('active',settings.autoSync);document.getElementById('autoSyncBadge').classList.toggle('active',settings.autoSync);if(settings.autoSync)startAutoSync();else stopAutoSync();showToast(settings.autoSync?'Auto-sync ON':'OFF')}
+        function startAutoSync(){if(autoSyncInterval)return;autoSyncInterval=setInterval(()=>{const d=new Date();d.setDate(d.getDate()-7);ws.send(JSON.stringify({action:'fetch_emails',query:`category:primary after:${d.toISOString().split('T')[0]}`,max_results:20}))},10*60*1000);document.getElementById('autoSyncBadge').classList.add('active')}
+        function stopAutoSync(){if(autoSyncInterval){clearInterval(autoSyncInterval);autoSyncInterval=null}document.getElementById('autoSyncBadge').classList.remove('active')}
+
+        // Search
+        function doSearch(){const q=document.getElementById('searchInput').value.trim();if(!q||!ws)return;document.getElementById('results').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'search',query:q,top_k:15}))}
+        function displayResults(r){document.getElementById('resultsCount').textContent=r.length?`${r.length} αποτελέσματα`:'';if(!r.length){document.getElementById('results').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}document.getElementById('results').innerHTML=r.map(x=>`<div class="result-card"><div class="result-header"><span class="result-title">${x.title}</span><span class="result-score">${x.score}</span></div><span class="result-category">${x.category}</span><div class="result-text">${x.text}</div></div>`).join('')}
+
+        // Email
+        function fetchEmails(){const cat=document.getElementById('emailCategory').value,days=document.getElementById('emailDays').value,filt=document.getElementById('emailFilter').value,search=document.getElementById('emailSearch').value;document.getElementById('emailList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';let q='';if(cat==='primary')q+='category:primary ';else if(cat==='updates')q+='category:updates ';else if(cat==='sent')q+='in:sent ';if(filt==='attachments')q+='has:attachment ';if(search)q+=search+' ';const d=new Date();d.setDate(d.getDate()-parseInt(days));q+=`after:${d.toISOString().split('T')[0]}`;ws.send(JSON.stringify({action:'fetch_emails',query:q.trim(),max_results:50}))}
+        function displayEmails(emails){emailsData=emails;selectedEmails.clear();updateSelectedCount();if(!emails.length){document.getElementById('emailList').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}document.getElementById('emailList').innerHTML=emails.map((e,i)=>`<div class="email-item" onclick="showEmailPreview(${i})"><input type="checkbox" class="email-checkbox" id="email-${i}" onclick="event.stopPropagation();toggleEmailCheckbox(${i})"><div><div style="color:#fff;">${e.subject}</div><div style="color:#888;font-size:0.8em;">${e.from} | ${e.date}</div></div><span style="padding:4px 10px;border-radius:12px;font-size:0.75em;background:#3498db;">${e.categoryLabel}</span></div>`).join('')}
+        function toggleEmailCheckbox(i){selectedEmails.has(i)?selectedEmails.delete(i):selectedEmails.add(i);updateSelectedCount()}
+        function toggleSelectAll(){const s=document.getElementById('selectAll').checked;emailsData.forEach((_,i)=>{s?selectedEmails.add(i):selectedEmails.delete(i);const cb=document.getElementById(`email-${i}`);if(cb)cb.checked=s});updateSelectedCount()}
+        function updateSelectedCount(){document.getElementById('selectedCount').textContent=selectedEmails.size;document.getElementById('btnSync').disabled=!selectedEmails.size}
+        function showEmailPreview(i){const e=emailsData[i];document.getElementById('emailModalTitle').innerHTML=`<i class="fas fa-envelope"></i> ${e.subject}`;document.getElementById('emailModalBody').innerHTML=`<p><b>Από:</b> ${e.from}</p><p><b>Ημ:</b> ${e.date}</p><hr style="border-color:#444;margin:15px 0;"><div style="background:#1a1a2e;padding:15px;border-radius:8px;">${e.snippet}</div>`;document.getElementById('emailModal').classList.add('active')}
+        function closeEmailModal(){document.getElementById('emailModal').classList.remove('active')}
+        function syncSelectedEmails(){if(!selectedEmails.size)return;document.getElementById('syncStatus').style.display='block';document.getElementById('syncLog').innerHTML='';addSyncLog(`Sync ${selectedEmails.size}...`,'info');ws.send(JSON.stringify({action:'sync_emails',emails:Array.from(selectedEmails).map(i=>emailsData[i])}))}
+        function addSyncLog(m,t='info'){const l=document.getElementById('syncLog'),e=document.createElement('div');e.className=t;e.innerHTML=`<i class="fas fa-${t==='success'?'check':'info'}-circle"></i> ${m}`;l.appendChild(e)}
+
+        // Contacts
+        function fetchContacts(){document.getElementById('contactsList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'fetch_contacts'}))}
+        function displayContacts(contacts){contactsData=contacts;if(!contacts.length){document.getElementById('contactsList').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}renderContacts(contacts)}
+        function renderContacts(list){document.getElementById('contactsList').innerHTML=list.map(c=>`<div class="contact-card"><h3><i class="fas fa-user"></i> ${c.name}</h3><div class="contact-info">${c.phones.map(p=>`<span><i class="fas fa-phone"></i> <a href="tel:${p}">${p}</a></span>`).join('')}${c.emails.map(e=>`<span><i class="fas fa-envelope"></i> <a href="mailto:${e}">${e}</a></span>`).join('')}</div></div>`).join('')}
+        function filterContacts(){const q=document.getElementById('contactsSearch').value.toLowerCase();renderContacts(contactsData.filter(c=>c.name.toLowerCase().includes(q)||c.emails.some(e=>e.toLowerCase().includes(q))))}
+
+        // Notes
+        function renderNotes(){document.getElementById('notesList').innerHTML=notes.map(n=>`<div class="note-item ${currentNoteId===n.id?'active':''}" onclick="loadNote('${n.id}')"><h4 style="margin-bottom:5px;">${n.title||'Χωρίς τίτλο'}</h4><small style="color:#888;">${new Date(n.updated).toLocaleDateString('el-GR')}</small></div>`).join('')||'<p style="color:#888;text-align:center;">Καμία</p>'}
+        function newNote(){currentNoteId=Date.now().toString();document.getElementById('noteTitle').value='';document.getElementById('noteContent').value='';renderNotes()}
+        function loadNote(id){const n=notes.find(x=>x.id===id);if(n){currentNoteId=id;document.getElementById('noteTitle').value=n.title;document.getElementById('noteContent').value=n.content;renderNotes()}}
+        function saveNote(){const t=document.getElementById('noteTitle').value.trim(),c=document.getElementById('noteContent').value.trim();if(!t&&!c)return;const idx=notes.findIndex(n=>n.id===currentNoteId);const note={id:currentNoteId,title:t,content:c,updated:Date.now()};if(idx>=0)notes[idx]=note;else notes.unshift(note);localStorage.setItem('enercon_notes',JSON.stringify(notes));renderNotes();showToast('Saved!')}
+        function deleteNote(){if(!currentNoteId||!confirm('Διαγραφή;'))return;notes=notes.filter(n=>n.id!==currentNoteId);localStorage.setItem('enercon_notes',JSON.stringify(notes));currentNoteId=null;document.getElementById('noteTitle').value='';document.getElementById('noteContent').value='';renderNotes();showToast('Deleted')}
+        function syncNoteToRAG(){const t=document.getElementById('noteTitle').value.trim(),c=document.getElementById('noteContent').value.trim();if(!c)return;ws.send(JSON.stringify({action:'sync_note',title:t||'Σημείωση',content:c}))}
+
+        // Calendar
+        function renderCalendar(){const months=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];document.getElementById('calendarMonth').textContent=`${months[currentMonth]} ${currentYear}`;const firstDay=new Date(currentYear,currentMonth,1).getDay(),daysInMonth=new Date(currentYear,currentMonth+1,0).getDate(),today=new Date(),todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;if(!selectedDate)selectedDate=todayStr;document.getElementById('eventDate').value=selectedDate;let html='';for(let i=0;i<firstDay;i++)html+='<div class="calendar-day" style="opacity:0.3;"></div>';for(let d=1;d<=daysInMonth;d++){const dateStr=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,isToday=dateStr===todayStr,isSelected=dateStr===selectedDate,hasEvent=events.some(e=>e.date===dateStr);html+=`<div class="calendar-day ${isToday?'today':''} ${isSelected?'selected':''} ${hasEvent?'has-event':''}" onclick="selectDate('${dateStr}')">${d}</div>`}document.getElementById('calendarDays').innerHTML=html;renderEvents()}
+        function prevMonth(){if(currentMonth===0){currentMonth=11;currentYear--}else currentMonth--;renderCalendar()}
+        function nextMonth(){if(currentMonth===11){currentMonth=0;currentYear++}else currentMonth++;renderCalendar()}
+        function goToday(){const t=new Date();currentMonth=t.getMonth();currentYear=t.getFullYear();selectedDate=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;renderCalendar()}
+        function selectDate(date){selectedDate=date;document.getElementById('eventDate').value=date;renderCalendar()}
+        function renderEvents(){const dateEvents=events.filter(e=>e.date===selectedDate);document.getElementById('selectedDateLabel').textContent=selectedDate?` - ${selectedDate.split('-').reverse().join('/')}`:'';document.getElementById('eventsList').innerHTML=dateEvents.length?dateEvents.map(e=>`<div class="event-item"><button class="event-delete" onclick="deleteEvent('${e.id}')"><i class="fas fa-times"></i></button><h4 style="padding-right:25px;">${e.title}</h4><p style="color:#888;font-size:0.85em;">${e.time||'Όλη μέρα'}</p></div>`).join(''):'<p style="color:#888;">Κανένα</p>'}
+        function addEvent(){const t=document.getElementById('eventTitle').value.trim(),date=document.getElementById('eventDate').value,time=document.getElementById('eventTime').value,desc=document.getElementById('eventDesc').value.trim();if(!t||!date)return;events.push({id:Date.now().toString(),title:t,date,time,desc});localStorage.setItem('enercon_events',JSON.stringify(events));document.getElementById('eventTitle').value='';document.getElementById('eventTime').value='';document.getElementById('eventDesc').value='';renderCalendar();showToast('Added!')}
+        function deleteEvent(id){events=events.filter(e=>e.id!==id);localStorage.setItem('enercon_events',JSON.stringify(events));renderCalendar();showToast('Deleted')}
+        function fetchGoogleCalendar(){ws.send(JSON.stringify({action:'fetch_calendar'}));showToast('Syncing...')}
+        function displayGoogleEvents(gEvents){let added=0;gEvents.forEach(e=>{if(!events.some(x=>x.googleId===e.id)){events.push({id:Date.now().toString()+Math.random(),googleId:e.id,title:e.summary||'Event',date:e.start?.date||(e.start?.dateTime||'').split('T')[0],time:(e.start?.dateTime||'').split('T')[1]?.substring(0,5)||''});added++}});localStorage.setItem('enercon_events',JSON.stringify(events));renderCalendar();showToast(`Synced ${added}!`)}
+
+        // Upload
+        const uz=document.getElementById('uploadZone'),fi=document.getElementById('fileInput');uz.onclick=()=>fi.click();uz.ondragover=e=>{e.preventDefault();uz.style.borderColor='#f39c12'};uz.ondragleave=()=>uz.style.borderColor='#444';uz.ondrop=e=>{e.preventDefault();uz.style.borderColor='#444';handleFiles(e.dataTransfer.files)};fi.onchange=()=>handleFiles(fi.files);
+        function handleFiles(files){for(const f of files){pendingFiles.push(f);document.getElementById('fileList').innerHTML+=`<div class="file-item"><span>${f.name}</span><span style="color:#888;">Ready</span></div>`}}
+        async function uploadAllFiles(){if(!ws)return;const cat=document.getElementById('uploadCategory').value;for(const f of pendingFiles){const r=new FileReader();r.onload=()=>ws.send(JSON.stringify({action:'upload_file',file_data:r.result.split(',')[1],filename:f.name,category:cat}));r.readAsDataURL(f);await new Promise(r=>setTimeout(r,500))}pendingFiles=[];document.getElementById('fileList').innerHTML=''}
+
+        // Docs
+        function loadDocs(){if(!ws)return;document.getElementById('docsList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'list'}))}
+        function displayDocs(docs){document.getElementById('docsList').innerHTML=docs.map(d=>`<div class="doc-card"><span class="result-category">${d.category}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.title}</span><button class="delete-btn" onclick="deleteDoc('${d.id}')"><i class="fas fa-trash"></i></button></div>`).join('')}
+        function deleteDoc(id){if(confirm('Διαγραφή;'))ws.send(JSON.stringify({action:'delete',doc_id:id}))}
+
+        function resetToken(){if(confirm('Reset;'))showToast('Delete token.pickle')}
+        function clearLocalData(){if(confirm('Διαγραφή;')){localStorage.clear();notes=[];events=[];settings={};showToast('Done!')}}
+
+        function showToast(m,err=false){const t=document.getElementById('toast');t.innerHTML=`<i class="fas fa-${err?'exclamation-triangle':'check-circle'}"></i> ${m}`;t.style.background=err?'#e74c3c':'#27ae60';t.style.display='block';setTimeout(()=>t.style.display='none',3000)}
+
+        // Init
+        document.getElementById('searchInput').onkeypress=e=>{if(e.key==='Enter')doSearch()};
+        document.getElementById('helpModal').onclick=e=>{if(e.target.id==='helpModal')closeHelp()};
+        document.getElementById('emailModal').onclick=e=>{if(e.target.id==='emailModal')closeEmailModal()};
+        document.getElementById('aiModal').onclick=e=>{if(e.target.id==='aiModal')closeAI()};
+        document.querySelectorAll('.quote-item input').forEach(i=>i.addEventListener('change',calcTotal));
+        connect();
+        if(settings.autoSync)document.getElementById('autoSyncBadge').classList.add('active');
+    </script>
+</body>
+</html>

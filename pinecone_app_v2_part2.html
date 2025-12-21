@@ -1,0 +1,389 @@
+    </div>
+
+    <!-- EMAIL MODAL -->
+    <div class="modal" id="emailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="emailModalTitle"></span>
+                <button class="modal-close" onclick="closeEmailModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="emailModalBody"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let ws, pendingFiles=[], emailsData=[], selectedEmails=new Set(), contactsData=[], totalDocs=0;
+        let notes = JSON.parse(localStorage.getItem('enercon_notes') || '[]');
+        let events = JSON.parse(localStorage.getItem('enercon_events') || '[]');
+        let settings = JSON.parse(localStorage.getItem('enercon_settings') || '{"autoSync":false,"useRAG":true}');
+        let prompts = JSON.parse(localStorage.getItem('enercon_prompts') || '{}');
+        let currentNoteId = null, currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear(), selectedDate = null;
+        let autoSyncInterval = null, currentAIAction = null, selectedTemplate = null;
+
+        const defaultPrompts = {
+            search: 'Βοήθησε με την αναζήτηση προϊόντων και τιμών. Χρησιμοποίησε το RAG context για ακριβείς πληροφορίες.',
+            quote: 'Δημιούργησε επαγγελματική προσφορά φωτοβολταϊκού. Συμπερίλαβε προϊόντα, τιμές, εγγύηση.',
+            email: 'Σύνταξε επαγγελματικό email. Τόνος φιλικός αλλά επαγγελματικός.',
+            general: 'Είσαι ο AI βοηθός του Enercon. Βοηθάς με φωτοβολταϊκά, τιμές, εγκαταστάσεις.'
+        };
+
+        const emailTemplates = {
+            quote: { name: 'Αποστολή Προσφοράς', subject: 'Προσφορά Φωτοβολταϊκού - {customer_name}', body: 'Αγαπητέ/ή {customer_name},\n\nΣας αποστέλλουμε την προσφορά για φωτοβολταϊκό σύστημα.\n\nΠεριλαμβάνει:\n{items}\n\nΣύνολο: €{total}\n\nΙσχύει 30 ημέρες.\n\nΜε εκτίμηση,\nEnercon Team' },
+            followup: { name: 'Follow-up', subject: 'Re: Προσφορά - Ενημέρωση', body: 'Αγαπητέ/ή {customer_name},\n\nΕπανερχόμαστε για την προσφορά της {date}.\n\nΈχετε απορίες;\n\nΜε εκτίμηση,\nEnercon Team' },
+            thankyou: { name: 'Ευχαριστήριο', subject: 'Ευχαριστούμε!', body: 'Αγαπητέ/ή {customer_name},\n\nΣας ευχαριστούμε για την εμπιστοσύνη!\n\nΕγκατάσταση: {date}\nΤεχνικός: {technician}\n\nΜε εκτίμηση,\nEnercon Team' },
+            reminder: { name: 'Συντήρηση', subject: 'Υπενθύμιση Συντήρησης', body: 'Αγαπητέ/ή {customer_name},\n\nΠλησιάζει η ετήσια συντήρηση.\n\n• Μέγιστη απόδοση\n• Παράταση εγγύησης\n• Πρόληψη βλαβών\n\nΚαλέστε: 210 1234567\n\nΜε εκτίμηση,\nEnercon Team' }
+        };
+
+        // DateTime
+        function updateDateTime() {
+            const now = new Date();
+            const days = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'];
+            const months = ['Ιαν','Φεβ','Μαρ','Απρ','Μαϊ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+            document.getElementById('currentDate').textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('el-GR');
+        }
+        setInterval(updateDateTime, 1000); updateDateTime();
+
+        // WebSocket
+        function connect() {
+            ws = new WebSocket('ws://localhost:8765');
+            ws.onopen = () => {
+                document.getElementById('statusDot').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                ws.send(JSON.stringify({action:'stats'}));
+                if(settings.claudeKey) ws.send(JSON.stringify({action:'set_claude_key', api_key: settings.claudeKey}));
+                if(settings.autoSync) startAutoSync();
+            };
+            ws.onclose = () => {
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                setTimeout(connect, 3000);
+            };
+            ws.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                if(d.action==='search_results') displayResults(d.results);
+                else if(d.action==='stats') { totalDocs=d.data.total_vectors; document.getElementById('statsText').textContent=`| ${totalDocs} docs`; updateMemoryStats(); }
+                else if(d.action==='file_upload_success'){showToast(`Uploaded ${d.count}`);ws.send(JSON.stringify({action:'stats'}))}
+                else if(d.action==='emails_loaded') displayEmails(d.emails);
+                else if(d.action==='email_sync_success') addSyncLog(d.subject,'success');
+                else if(d.action==='email_sync_complete'){addSyncLog(`Done! ${d.count}`,'success');showToast(`Synced ${d.count}!`)}
+                else if(d.action==='list_results') displayDocs(d.docs);
+                else if(d.action==='delete_success'){showToast('Deleted');loadDocs()}
+                else if(d.action==='note_synced') showToast('Note synced!');
+                else if(d.action==='calendar_events') displayGoogleEvents(d.events);
+                else if(d.action==='contacts_loaded') displayContacts(d.contacts);
+                else if(d.action==='ai_response') displayAIResponse(d.response);
+                else if(d.action==='claude_key_set') showToast(d.success?'Claude API OK!':'Claude Error',!d.success);
+                else if(d.action==='pdf_generated') handlePDF(d);
+                else if(d.action==='error') showToast(d.message,true);
+            };
+        }
+
+        function updateMemoryStats() {
+            const maxDocs = 10000;
+            const percent = Math.min(100, (totalDocs / maxDocs) * 100);
+            document.getElementById('memoryPercent').textContent = percent.toFixed(1) + '%';
+            document.getElementById('memoryBar').style.width = percent + '%';
+            document.getElementById('memDocs').textContent = totalDocs;
+            document.getElementById('memNotes').textContent = notes.length;
+            document.getElementById('memEvents').textContent = events.length;
+            document.getElementById('memEmails').textContent = Math.floor(totalDocs * 0.3);
+        }
+
+        // Panels
+        function showPanel(n) {
+            document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+            document.getElementById(n+'Panel').classList.add('active');
+            const tab = document.querySelector(`.tab[onclick="showPanel('${n}')"]`);
+            if(tab) tab.classList.add('active');
+            if(n==='docs')loadDocs();
+            if(n==='notes')renderNotes();
+            if(n==='calendar')renderCalendar();
+            if(n==='settings'){loadSettings();updateMemoryStats();}
+        }
+        function showHelp(){document.getElementById('helpModal').classList.add('active')}
+        function closeHelp(){document.getElementById('helpModal').classList.remove('active')}
+
+        // AI Modal
+        function showAI() { 
+            document.getElementById('aiModal').classList.add('active'); 
+            document.getElementById('quoteDate').value = new Date().toISOString().split('T')[0];
+            loadPrompts();
+        }
+        function closeAI() { document.getElementById('aiModal').classList.remove('active'); }
+        
+        function showAITab(tab) {
+            document.querySelectorAll('.ai-tab').forEach(t=>t.classList.remove('active'));
+            document.querySelectorAll('.ai-panel').forEach(p=>p.classList.remove('active'));
+            event.target.closest('.ai-tab').classList.add('active');
+            document.getElementById('aiPanel'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+        }
+
+        function startAIChat(action) {
+            currentAIAction = action;
+            document.getElementById('aiOptions').style.display = 'none';
+            document.getElementById('aiChatBox').style.display = 'block';
+            document.getElementById('aiMessages').innerHTML = '';
+            document.getElementById('aiSuggestions').innerHTML = '';
+            
+            let msg = '', suggestions = [];
+            if(action === 'search') { msg = 'Τι θέλεις να αναζητήσεις;'; suggestions = ['Τιμές inverter', 'Panels 500W', 'Μπαταρίες']; }
+            else if(action === 'quote') { msg = 'Ας φτιάξουμε προσφορά! Πες μου:\n• Τι εξοπλισμό;\n• Πόσα kW;\n• Πελάτης;'; suggestions = ['5kW οικιακό', '10kW επαγγελματικό']; }
+            else if(action === 'email') { msg = 'Τι email θέλεις να γράψω;'; suggestions = ['Προσφορά', 'Follow-up', 'Ευχαριστήριο']; }
+            else if(action === 'help') { msg = 'Ρώτα με για την εφαρμογή!'; suggestions = ['Πώς ανεβάζω;', 'Τι είναι RAG;', 'Πώς φτιάχνω PDF;']; }
+            
+            addAIMessage(msg, 'assistant');
+            suggestions.forEach(s => {
+                document.getElementById('aiSuggestions').innerHTML += `<span class="ai-suggestion" onclick="document.getElementById('aiInput').value='${s}';sendAI()">${s}</span>`;
+            });
+        }
+
+        function addAIMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = 'ai-message ' + type;
+            div.innerHTML = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            document.getElementById('aiMessages').appendChild(div);
+            document.getElementById('aiMessages').scrollTop = 99999;
+        }
+
+        function sendAI() {
+            const input = document.getElementById('aiInput');
+            const text = input.value.trim();
+            if(!text || !ws) return;
+            
+            addAIMessage(text, 'user');
+            input.value = '';
+            document.getElementById('aiSuggestions').innerHTML = '';
+            
+            addAIMessage('Σκέφτομαι...', 'assistant loading');
+            
+            ws.send(JSON.stringify({
+                action: 'ai_chat',
+                message: text,
+                ai_action: currentAIAction,
+                settings: { useRAG: settings.useRAG }
+            }));
+        }
+
+        function displayAIResponse(response) {
+            const msgs = document.getElementById('aiMessages');
+            const loading = msgs.querySelector('.loading');
+            if(loading) loading.remove();
+            addAIMessage(response, 'assistant');
+        }
+
+        // Quote Builder
+        function addQuoteItem() {
+            const html = `<div class="quote-item">
+                <input type="text" placeholder="Περιγραφή" class="item-name">
+                <input type="number" placeholder="Qty" class="item-qty" value="1" onchange="calcTotal()">
+                <input type="number" placeholder="€" class="item-price" onchange="calcTotal()">
+                <button class="remove-item" onclick="this.parentElement.remove();calcTotal()"><i class="fas fa-times"></i></button>
+            </div>`;
+            document.getElementById('quoteItems').insertAdjacentHTML('beforeend', html);
+        }
+
+        function calcTotal() {
+            let total = 0;
+            document.querySelectorAll('.quote-item').forEach(item => {
+                const qty = parseFloat(item.querySelector('.item-qty').value) || 0;
+                const price = parseFloat(item.querySelector('.item-price').value) || 0;
+                total += qty * price;
+            });
+            document.getElementById('quoteTotal').textContent = total.toFixed(2);
+        }
+
+        function aiGenerateQuote() {
+            const name = document.getElementById('customerName').value;
+            if(!name) return showToast('Βάλε όνομα πελάτη', true);
+            addAIMessage('Ψάχνω τιμές και δημιουργώ προσφορά...', 'assistant');
+            ws.send(JSON.stringify({
+                action: 'ai_chat',
+                message: `Δημιούργησε προσφορά για ${name}. Πρότεινε προϊόντα και τιμές.`,
+                ai_action: 'quote',
+                settings: { useRAG: true }
+            }));
+        }
+
+        function generatePDF() {
+            const items = [];
+            document.querySelectorAll('.quote-item').forEach(item => {
+                const name = item.querySelector('.item-name').value;
+                const qty = parseFloat(item.querySelector('.item-qty').value) || 1;
+                const price = parseFloat(item.querySelector('.item-price').value) || 0;
+                if(name) items.push({ name, qty, price });
+            });
+            
+            if(!items.length) return showToast('Πρόσθεσε προϊόντα', true);
+            
+            ws.send(JSON.stringify({
+                action: 'generate_pdf',
+                quote_data: {
+                    number: document.getElementById('quoteNumber').value || '001',
+                    date: document.getElementById('quoteDate').value,
+                    customer_name: document.getElementById('customerName').value,
+                    customer_email: document.getElementById('customerEmail').value,
+                    customer_phone: document.getElementById('customerPhone').value,
+                    items: items,
+                    notes: document.getElementById('quoteNotes').value
+                }
+            }));
+            showToast('Δημιουργία PDF...');
+        }
+
+        function handlePDF(data) {
+            if(data.success) {
+                const link = document.createElement('a');
+                link.href = 'data:application/pdf;base64,' + data.data;
+                link.download = data.filename;
+                link.click();
+                showToast('PDF έτοιμο!');
+            } else {
+                showToast('PDF Error: ' + data.error, true);
+            }
+        }
+
+        // Email Templates
+        function selectTemplate(id) {
+            selectedTemplate = id;
+            const t = emailTemplates[id];
+            document.getElementById('templatePreview').style.display = 'block';
+            document.getElementById('templateName').textContent = t.name;
+            document.getElementById('templateSubject').textContent = '📧 ' + t.subject;
+            document.getElementById('templateBody').textContent = t.body;
+        }
+
+        function copyTemplate() {
+            if(!selectedTemplate) return;
+            const t = emailTemplates[selectedTemplate];
+            navigator.clipboard.writeText(t.subject + '\n\n' + t.body);
+            showToast('Αντιγράφηκε!');
+        }
+
+        function editTemplateWithAI() {
+            if(!selectedTemplate) return;
+            showAITab('chat');
+            startAIChat('email');
+            document.getElementById('aiInput').value = 'Επεξεργάσου το template: ' + emailTemplates[selectedTemplate].name;
+        }
+
+        // Prompts
+        function loadPrompts() {
+            const saved = JSON.parse(localStorage.getItem('enercon_prompts') || '{}');
+            document.getElementById('promptSearch').value = saved.search || defaultPrompts.search;
+            document.getElementById('promptQuote').value = saved.quote || defaultPrompts.quote;
+            document.getElementById('promptEmail').value = saved.email || defaultPrompts.email;
+            document.getElementById('promptGeneral').value = saved.general || defaultPrompts.general;
+        }
+
+        function savePrompts() {
+            const p = {
+                search: document.getElementById('promptSearch').value,
+                quote: document.getElementById('promptQuote').value,
+                email: document.getElementById('promptEmail').value,
+                general: document.getElementById('promptGeneral').value
+            };
+            localStorage.setItem('enercon_prompts', JSON.stringify(p));
+            showToast('Prompts αποθηκεύτηκαν!');
+        }
+
+        function resetPrompt(type) {
+            document.getElementById('prompt' + type.charAt(0).toUpperCase() + type.slice(1)).value = defaultPrompts[type];
+        }
+
+        // Settings
+        function saveClaudeKey() {
+            const key = document.getElementById('claudeApiKey').value;
+            settings.claudeKey = key;
+            localStorage.setItem('enercon_settings', JSON.stringify(settings));
+            ws.send(JSON.stringify({action:'set_claude_key', api_key: key}));
+        }
+
+        function toggleSetting(key) {
+            settings[key] = !settings[key];
+            localStorage.setItem('enercon_settings', JSON.stringify(settings));
+            const el = document.getElementById('toggle' + key.charAt(0).toUpperCase() + key.slice(1));
+            if(el) el.classList.toggle('active', settings[key]);
+        }
+
+        function loadSettings() {
+            document.getElementById('toggleAutoSync').classList.toggle('active', settings.autoSync);
+            document.getElementById('toggleUseRAG').classList.toggle('active', settings.useRAG !== false);
+            if(settings.claudeKey) document.getElementById('claudeApiKey').value = settings.claudeKey;
+        }
+
+        // Auto-Sync
+        function toggleAutoSync(){settings.autoSync=!settings.autoSync;localStorage.setItem('enercon_settings',JSON.stringify(settings));document.getElementById('toggleAutoSync').classList.toggle('active',settings.autoSync);document.getElementById('autoSyncBadge').classList.toggle('active',settings.autoSync);if(settings.autoSync)startAutoSync();else stopAutoSync();showToast(settings.autoSync?'Auto-sync ON':'OFF')}
+        function startAutoSync(){if(autoSyncInterval)return;autoSyncInterval=setInterval(()=>{const d=new Date();d.setDate(d.getDate()-7);ws.send(JSON.stringify({action:'fetch_emails',query:`category:primary after:${d.toISOString().split('T')[0]}`,max_results:20}))},10*60*1000);document.getElementById('autoSyncBadge').classList.add('active')}
+        function stopAutoSync(){if(autoSyncInterval){clearInterval(autoSyncInterval);autoSyncInterval=null}document.getElementById('autoSyncBadge').classList.remove('active')}
+
+        // Search
+        function doSearch(){const q=document.getElementById('searchInput').value.trim();if(!q||!ws)return;document.getElementById('results').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'search',query:q,top_k:15}))}
+        function displayResults(r){document.getElementById('resultsCount').textContent=r.length?`${r.length} αποτελέσματα`:'';if(!r.length){document.getElementById('results').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}document.getElementById('results').innerHTML=r.map(x=>`<div class="result-card"><div class="result-header"><span class="result-title">${x.title}</span><span class="result-score">${x.score}</span></div><span class="result-category">${x.category}</span><div class="result-text">${x.text}</div></div>`).join('')}
+
+        // Email
+        function fetchEmails(){const cat=document.getElementById('emailCategory').value,days=document.getElementById('emailDays').value,filt=document.getElementById('emailFilter').value,search=document.getElementById('emailSearch').value;document.getElementById('emailList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';let q='';if(cat==='primary')q+='category:primary ';else if(cat==='updates')q+='category:updates ';else if(cat==='sent')q+='in:sent ';if(filt==='attachments')q+='has:attachment ';if(search)q+=search+' ';const d=new Date();d.setDate(d.getDate()-parseInt(days));q+=`after:${d.toISOString().split('T')[0]}`;ws.send(JSON.stringify({action:'fetch_emails',query:q.trim(),max_results:50}))}
+        function displayEmails(emails){emailsData=emails;selectedEmails.clear();updateSelectedCount();if(!emails.length){document.getElementById('emailList').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}document.getElementById('emailList').innerHTML=emails.map((e,i)=>`<div class="email-item" onclick="showEmailPreview(${i})"><input type="checkbox" class="email-checkbox" id="email-${i}" onclick="event.stopPropagation();toggleEmailCheckbox(${i})"><div><div style="color:#fff;">${e.subject}</div><div style="color:#888;font-size:0.8em;">${e.from} | ${e.date}</div></div><span style="padding:4px 10px;border-radius:12px;font-size:0.75em;background:#3498db;">${e.categoryLabel}</span></div>`).join('')}
+        function toggleEmailCheckbox(i){selectedEmails.has(i)?selectedEmails.delete(i):selectedEmails.add(i);updateSelectedCount()}
+        function toggleSelectAll(){const s=document.getElementById('selectAll').checked;emailsData.forEach((_,i)=>{s?selectedEmails.add(i):selectedEmails.delete(i);const cb=document.getElementById(`email-${i}`);if(cb)cb.checked=s});updateSelectedCount()}
+        function updateSelectedCount(){document.getElementById('selectedCount').textContent=selectedEmails.size;document.getElementById('btnSync').disabled=!selectedEmails.size}
+        function showEmailPreview(i){const e=emailsData[i];document.getElementById('emailModalTitle').innerHTML=`<i class="fas fa-envelope"></i> ${e.subject}`;document.getElementById('emailModalBody').innerHTML=`<p><b>Από:</b> ${e.from}</p><p><b>Ημ:</b> ${e.date}</p><hr style="border-color:#444;margin:15px 0;"><div style="background:#1a1a2e;padding:15px;border-radius:8px;">${e.snippet}</div>`;document.getElementById('emailModal').classList.add('active')}
+        function closeEmailModal(){document.getElementById('emailModal').classList.remove('active')}
+        function syncSelectedEmails(){if(!selectedEmails.size)return;document.getElementById('syncStatus').style.display='block';document.getElementById('syncLog').innerHTML='';addSyncLog(`Sync ${selectedEmails.size}...`,'info');ws.send(JSON.stringify({action:'sync_emails',emails:Array.from(selectedEmails).map(i=>emailsData[i])}))}
+        function addSyncLog(m,t='info'){const l=document.getElementById('syncLog'),e=document.createElement('div');e.className=t;e.innerHTML=`<i class="fas fa-${t==='success'?'check':'info'}-circle"></i> ${m}`;l.appendChild(e)}
+
+        // Contacts
+        function fetchContacts(){document.getElementById('contactsList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'fetch_contacts'}))}
+        function displayContacts(contacts){contactsData=contacts;if(!contacts.length){document.getElementById('contactsList').innerHTML='<div class="loading">Δεν βρέθηκαν</div>';return}renderContacts(contacts)}
+        function renderContacts(list){document.getElementById('contactsList').innerHTML=list.map(c=>`<div class="contact-card"><h3><i class="fas fa-user"></i> ${c.name}</h3><div class="contact-info">${c.phones.map(p=>`<span><i class="fas fa-phone"></i> <a href="tel:${p}">${p}</a></span>`).join('')}${c.emails.map(e=>`<span><i class="fas fa-envelope"></i> <a href="mailto:${e}">${e}</a></span>`).join('')}</div></div>`).join('')}
+        function filterContacts(){const q=document.getElementById('contactsSearch').value.toLowerCase();renderContacts(contactsData.filter(c=>c.name.toLowerCase().includes(q)||c.emails.some(e=>e.toLowerCase().includes(q))))}
+
+        // Notes
+        function renderNotes(){document.getElementById('notesList').innerHTML=notes.map(n=>`<div class="note-item ${currentNoteId===n.id?'active':''}" onclick="loadNote('${n.id}')"><h4 style="margin-bottom:5px;">${n.title||'Χωρίς τίτλο'}</h4><small style="color:#888;">${new Date(n.updated).toLocaleDateString('el-GR')}</small></div>`).join('')||'<p style="color:#888;text-align:center;">Καμία</p>'}
+        function newNote(){currentNoteId=Date.now().toString();document.getElementById('noteTitle').value='';document.getElementById('noteContent').value='';renderNotes()}
+        function loadNote(id){const n=notes.find(x=>x.id===id);if(n){currentNoteId=id;document.getElementById('noteTitle').value=n.title;document.getElementById('noteContent').value=n.content;renderNotes()}}
+        function saveNote(){const t=document.getElementById('noteTitle').value.trim(),c=document.getElementById('noteContent').value.trim();if(!t&&!c)return;const idx=notes.findIndex(n=>n.id===currentNoteId);const note={id:currentNoteId,title:t,content:c,updated:Date.now()};if(idx>=0)notes[idx]=note;else notes.unshift(note);localStorage.setItem('enercon_notes',JSON.stringify(notes));renderNotes();showToast('Saved!')}
+        function deleteNote(){if(!currentNoteId||!confirm('Διαγραφή;'))return;notes=notes.filter(n=>n.id!==currentNoteId);localStorage.setItem('enercon_notes',JSON.stringify(notes));currentNoteId=null;document.getElementById('noteTitle').value='';document.getElementById('noteContent').value='';renderNotes();showToast('Deleted')}
+        function syncNoteToRAG(){const t=document.getElementById('noteTitle').value.trim(),c=document.getElementById('noteContent').value.trim();if(!c)return;ws.send(JSON.stringify({action:'sync_note',title:t||'Σημείωση',content:c}))}
+
+        // Calendar
+        function renderCalendar(){const months=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];document.getElementById('calendarMonth').textContent=`${months[currentMonth]} ${currentYear}`;const firstDay=new Date(currentYear,currentMonth,1).getDay(),daysInMonth=new Date(currentYear,currentMonth+1,0).getDate(),today=new Date(),todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;if(!selectedDate)selectedDate=todayStr;document.getElementById('eventDate').value=selectedDate;let html='';for(let i=0;i<firstDay;i++)html+='<div class="calendar-day" style="opacity:0.3;"></div>';for(let d=1;d<=daysInMonth;d++){const dateStr=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,isToday=dateStr===todayStr,isSelected=dateStr===selectedDate,hasEvent=events.some(e=>e.date===dateStr);html+=`<div class="calendar-day ${isToday?'today':''} ${isSelected?'selected':''} ${hasEvent?'has-event':''}" onclick="selectDate('${dateStr}')">${d}</div>`}document.getElementById('calendarDays').innerHTML=html;renderEvents()}
+        function prevMonth(){if(currentMonth===0){currentMonth=11;currentYear--}else currentMonth--;renderCalendar()}
+        function nextMonth(){if(currentMonth===11){currentMonth=0;currentYear++}else currentMonth++;renderCalendar()}
+        function goToday(){const t=new Date();currentMonth=t.getMonth();currentYear=t.getFullYear();selectedDate=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;renderCalendar()}
+        function selectDate(date){selectedDate=date;document.getElementById('eventDate').value=date;renderCalendar()}
+        function renderEvents(){const dateEvents=events.filter(e=>e.date===selectedDate);document.getElementById('selectedDateLabel').textContent=selectedDate?` - ${selectedDate.split('-').reverse().join('/')}`:'';document.getElementById('eventsList').innerHTML=dateEvents.length?dateEvents.map(e=>`<div class="event-item"><button class="event-delete" onclick="deleteEvent('${e.id}')"><i class="fas fa-times"></i></button><h4 style="padding-right:25px;">${e.title}</h4><p style="color:#888;font-size:0.85em;">${e.time||'Όλη μέρα'}</p></div>`).join(''):'<p style="color:#888;">Κανένα</p>'}
+        function addEvent(){const t=document.getElementById('eventTitle').value.trim(),date=document.getElementById('eventDate').value,time=document.getElementById('eventTime').value,desc=document.getElementById('eventDesc').value.trim();if(!t||!date)return;events.push({id:Date.now().toString(),title:t,date,time,desc});localStorage.setItem('enercon_events',JSON.stringify(events));document.getElementById('eventTitle').value='';document.getElementById('eventTime').value='';document.getElementById('eventDesc').value='';renderCalendar();showToast('Added!')}
+        function deleteEvent(id){events=events.filter(e=>e.id!==id);localStorage.setItem('enercon_events',JSON.stringify(events));renderCalendar();showToast('Deleted')}
+        function fetchGoogleCalendar(){ws.send(JSON.stringify({action:'fetch_calendar'}));showToast('Syncing...')}
+        function displayGoogleEvents(gEvents){let added=0;gEvents.forEach(e=>{if(!events.some(x=>x.googleId===e.id)){events.push({id:Date.now().toString()+Math.random(),googleId:e.id,title:e.summary||'Event',date:e.start?.date||(e.start?.dateTime||'').split('T')[0],time:(e.start?.dateTime||'').split('T')[1]?.substring(0,5)||''});added++}});localStorage.setItem('enercon_events',JSON.stringify(events));renderCalendar();showToast(`Synced ${added}!`)}
+
+        // Upload
+        const uz=document.getElementById('uploadZone'),fi=document.getElementById('fileInput');uz.onclick=()=>fi.click();uz.ondragover=e=>{e.preventDefault();uz.style.borderColor='#f39c12'};uz.ondragleave=()=>uz.style.borderColor='#444';uz.ondrop=e=>{e.preventDefault();uz.style.borderColor='#444';handleFiles(e.dataTransfer.files)};fi.onchange=()=>handleFiles(fi.files);
+        function handleFiles(files){for(const f of files){pendingFiles.push(f);document.getElementById('fileList').innerHTML+=`<div class="file-item"><span>${f.name}</span><span style="color:#888;">Ready</span></div>`}}
+        async function uploadAllFiles(){if(!ws)return;const cat=document.getElementById('uploadCategory').value;for(const f of pendingFiles){const r=new FileReader();r.onload=()=>ws.send(JSON.stringify({action:'upload_file',file_data:r.result.split(',')[1],filename:f.name,category:cat}));r.readAsDataURL(f);await new Promise(r=>setTimeout(r,500))}pendingFiles=[];document.getElementById('fileList').innerHTML=''}
+
+        // Docs
+        function loadDocs(){if(!ws)return;document.getElementById('docsList').innerHTML='<div class="loading"><span class="loading-spinner"></span></div>';ws.send(JSON.stringify({action:'list'}))}
+        function displayDocs(docs){document.getElementById('docsList').innerHTML=docs.map(d=>`<div class="doc-card"><span class="result-category">${d.category}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.title}</span><button class="delete-btn" onclick="deleteDoc('${d.id}')"><i class="fas fa-trash"></i></button></div>`).join('')}
+        function deleteDoc(id){if(confirm('Διαγραφή;'))ws.send(JSON.stringify({action:'delete',doc_id:id}))}
+
+        function resetToken(){if(confirm('Reset;'))showToast('Delete token.pickle')}
+        function clearLocalData(){if(confirm('Διαγραφή;')){localStorage.clear();notes=[];events=[];settings={};showToast('Done!')}}
+
+        function showToast(m,err=false){const t=document.getElementById('toast');t.innerHTML=`<i class="fas fa-${err?'exclamation-triangle':'check-circle'}"></i> ${m}`;t.style.background=err?'#e74c3c':'#27ae60';t.style.display='block';setTimeout(()=>t.style.display='none',3000)}
+
+        // Init
+        document.getElementById('searchInput').onkeypress=e=>{if(e.key==='Enter')doSearch()};
+        document.getElementById('helpModal').onclick=e=>{if(e.target.id==='helpModal')closeHelp()};
+        document.getElementById('emailModal').onclick=e=>{if(e.target.id==='emailModal')closeEmailModal()};
+        document.getElementById('aiModal').onclick=e=>{if(e.target.id==='aiModal')closeAI()};
+        document.querySelectorAll('.quote-item input').forEach(i=>i.addEventListener('change',calcTotal));
+        connect();
+        if(settings.autoSync)document.getElementById('autoSyncBadge').classList.add('active');
+    </script>
+</body>
+</html>

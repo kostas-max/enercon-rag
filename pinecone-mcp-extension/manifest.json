@@ -1,0 +1,16 @@
+{
+  "name": "Pinecone MCP",
+  "version": "1.0.0",
+  "description": "Connect to Pinecone vector database for semantic search",
+  "author": "Enercon",
+  "mcp": {
+    "command": "uvx",
+    "args": [
+      "mcp-pinecone",
+      "--index-name",
+      "enercon",
+      "--api-key",
+      "pcsk_5cxk9S_U6bg96gFJEfFWm1da2fwmVqRdGd9cEt1UNq7WhznwJneHFwMH1EdQaKKLRkWuVH"
+    ]
+  }
+}
