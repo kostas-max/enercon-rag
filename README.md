@@ -12,13 +12,14 @@ AI-powered knowledge base για διαχείριση εγγράφων, emails �
 - 📝 **Notes** - Σημειώσεις
 - 🤖 **AI Assistant** - Claude integration
 - 📊 **PDF Generator** - Δημιουργία προσφορών
+- 🔌 **MCP Server** - Model Context Protocol για Claude Desktop
 
 ## Installation
 
 ### 1. Clone & Install dependencies
 
 ```bash
-git clone https://github.com/yourusername/enercon-rag.git
+git clone https://github.com/kostas-max/enercon-rag.git
 cd enercon-rag
 pip install -r requirements.txt
 ```
@@ -51,6 +52,48 @@ python pinecone_server_v2.py
 
 Then open `pinecone_app_v2.html` in your browser.
 
+---
+
+## 🔌 MCP Server - Claude Desktop Integration
+
+Το Enercon RAG μπορεί να λειτουργήσει ως **MCP Server** (Model Context Protocol), επιτρέποντας στο Claude Desktop να διαβάζει και να γράφει απευθείας στη βάση γνώσεων!
+
+### Τι μπορεί να κάνει το Claude μέσω MCP:
+
+- 📖 **Διάβασμα** - Αναζήτηση στη μνήμη RAG
+- ✍️ **Γράψιμο** - Προσθήκη νέων πληροφοριών (επαφές, σημειώσεις, τιμές)
+- 📊 **Στατιστικά** - Έλεγχος περιεχομένου της βάσης
+- 🔍 **Semantic Search** - Εύρεση σχετικών εγγράφων
+
+### Helper Scripts
+
+```bash
+# Δες τι υπάρχει στη μνήμη
+python check_memory.py
+
+# Πρόσθεσε πληροφορίες στο RAG
+python add_to_rag.py
+
+# Αναζήτηση στο RAG
+python search_test.py
+```
+
+### Παράδειγμα χρήσης με Claude:
+
+```python
+# Προσθήκη επαφής
+add_to_rag(
+    text="Επαφή: Γιάννης Παπαδόπουλος, Τηλ: 6971234567, Email: giannis@test.gr",
+    title="Επαφή: Γιάννης Παπαδόπουλος",
+    category="contact"
+)
+
+# Αναζήτηση
+results = search("Γιάννης τηλέφωνο")
+```
+
+---
+
 ## Tech Stack
 
 - **Backend**: Python, WebSocket, asyncio
@@ -58,6 +101,7 @@ Then open `pinecone_app_v2.html` in your browser.
 - **AI**: Claude (Anthropic), multilingual-e5-large embeddings
 - **Frontend**: HTML, CSS, JavaScript
 - **APIs**: Gmail, Google Calendar, Google Contacts
+- **Protocol**: MCP (Model Context Protocol)
 
 ## File Structure
 
@@ -65,6 +109,9 @@ Then open `pinecone_app_v2.html` in your browser.
 enercon-rag/
 ├── pinecone_server_v2.py   # Backend server
 ├── pinecone_app_v2.html    # Frontend UI
+├── add_to_rag.py           # Script για προσθήκη στο RAG
+├── check_memory.py         # Script για έλεγχο μνήμης
+├── search_test.py          # Script για αναζήτηση
 ├── credentials.json        # Google OAuth (not in git)
 ├── token.pickle           # OAuth token (not in git)
 ├── .env                   # API keys (not in git)
@@ -78,3 +125,7 @@ enercon-rag/
 ## License
 
 MIT
+
+## Author
+
+Made with ❤️ by [kostas-max](https://github.com/kostas-max)
