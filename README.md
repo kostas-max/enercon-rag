@@ -2,7 +2,7 @@
 
 AI-powered knowledge base για διαχείριση εγγράφων, emails και επαφών φωτοβολταϊκών συστημάτων.
 
-## Features
+## 🚀 Features
 
 - 🔍 **Semantic Search** - Αναζήτηση με AI (RAG)
 - 📄 **Document Upload** - PDF, Excel, TXT
@@ -13,119 +13,159 @@ AI-powered knowledge base για διαχείριση εγγράφων, emails �
 - 🤖 **AI Assistant** - Claude integration
 - 📊 **PDF Generator** - Δημιουργία προσφορών
 - 🔌 **MCP Server** - Model Context Protocol για Claude Desktop
+- 🌐 **Remote API** - FastAPI server για Claude.ai (Cloud)
 
-## Installation
+---
 
-### 1. Clone & Install dependencies
+## 📦 Installation
 
+### 1. Clone
 ```bash
 git clone https://github.com/kostas-max/enercon-rag.git
 cd enercon-rag
+```
+
+### 2. Install dependencies
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Setup Environment Variables
-
+### 3. Setup Environment
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
+# Επεξεργάσου το .env με τα API keys σου
 ```
 
-Required keys:
-- `PINECONE_API_KEY` - Get from [Pinecone Console](https://app.pinecone.io/)
-- `PINECONE_INDEX_NAME` - Your index name (default: enercon)
-- `CLAUDE_API_KEY` - Get from [Anthropic Console](https://console.anthropic.com/) (optional)
-
-### 3. Google OAuth Setup (for Gmail/Calendar/Contacts)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create new project or select existing
-3. Enable APIs: Gmail, Calendar, People
-4. Create OAuth 2.0 credentials (Desktop App)
-5. Download `credentials.json` to project folder
-
 ### 4. Run
-
 ```bash
 python pinecone_server_v2.py
 ```
-
-Then open `pinecone_app_v2.html` in your browser.
+Άνοιξε το `pinecone_app_v2.html` στον browser.
 
 ---
 
-## 🔌 MCP Server - Claude Desktop Integration
+## 🔌 MCP Server - Claude Desktop
 
-Το Enercon RAG μπορεί να λειτουργήσει ως **MCP Server** (Model Context Protocol), επιτρέποντας στο Claude Desktop να διαβάζει και να γράφει απευθείας στη βάση γνώσεων!
+Το Enercon RAG λειτουργεί ως **MCP Server** για Claude Desktop.
 
-### Τι μπορεί να κάνει το Claude μέσω MCP:
+### Setup
+Το αρχείο `claude_desktop_config.json` (συνήθως στο `%APPDATA%\Claude\`):
+```json
+{
+  "mcpServers": {
+    "enercon-rag": {
+      "command": "python",
+      "args": ["C:\\path\\to\\enercon-rag\\mcp_server.py"],
+      "env": {
+        "PINECONE_API_KEY": "your_key",
+        "PINECONE_INDEX_NAME": "enercon"
+      }
+    }
+  }
+}
+```
 
-- 📖 **Διάβασμα** - Αναζήτηση στη μνήμη RAG
-- ✍️ **Γράψιμο** - Προσθήκη νέων πληροφοριών (επαφές, σημειώσεις, τιμές)
-- 📊 **Στατιστικά** - Έλεγχος περιεχομένου της βάσης
-- 🔍 **Semantic Search** - Εύρεση σχετικών εγγράφων
+### Tools διαθέσιμα:
+- `rag_search` - Αναζήτηση στη βάση
+- `rag_add` - Προσθήκη πληροφοριών
+- `rag_stats` - Στατιστικά
 
-### Helper Scripts
+---
+
+## 🌐 Remote API - Claude.ai (Cloud)
+
+FastAPI server για σύνδεση με Claude.ai μέσω HTTP/WebSocket.
+
+### Local Testing
+```bash
+python mcp_remote.py
+# Τρέχει στο http://localhost:8008
+```
+
+### Endpoints
+| Method | Endpoint | Περιγραφή |
+|--------|----------|-----------|
+| GET | `/` | Status |
+| GET | `/health` | Health check |
+| GET | `/docs` | Swagger UI |
+| POST | `/rag/search` | Αναζήτηση |
+| POST | `/rag/add` | Προσθήκη |
+| GET | `/rag/stats` | Στατιστικά |
+| WS | `/ws` | WebSocket |
+
+### Authentication
+Όλα τα endpoints (εκτός `/`, `/health`, `/docs`) χρειάζονται header:
+```
+X-API-Key: your_secret_key
+```
+
+---
+
+## ☁️ Deploy στο Cloud
+
+### Google Cloud Run
+Δες [DEPLOY_CLOUD_RUN.md](DEPLOY_CLOUD_RUN.md)
 
 ```bash
-# Δες τι υπάρχει στη μνήμη
-python check_memory.py
-
-# Πρόσθεσε πληροφορίες στο RAG
-python add_to_rag.py
-
-# Αναζήτηση στο RAG
-python search_test.py
+gcloud run deploy enercon-rag \
+  --source . \
+  --region europe-west1 \
+  --set-env-vars "PINECONE_API_KEY=xxx,MCP_API_SECRET=xxx"
 ```
 
-### Παράδειγμα χρήσης με Claude:
-
-```python
-# Προσθήκη επαφής
-add_to_rag(
-    text="Επαφή: Γιάννης Παπαδόπουλος, Τηλ: 6971234567, Email: giannis@test.gr",
-    title="Επαφή: Γιάννης Παπαδόπουλος",
-    category="contact"
-)
-
-# Αναζήτηση
-results = search("Γιάννης τηλέφωνο")
-```
+### Άλλες επιλογές
+- **Railway** - `railway up`
+- **Render** - Connect GitHub repo
+- **Heroku** - `git push heroku main`
 
 ---
 
-## Tech Stack
+## 🗄️ Multi-Database Support (Planned)
 
-- **Backend**: Python, WebSocket, asyncio
-- **Database**: Pinecone (vector DB)
-- **AI**: Claude (Anthropic), multilingual-e5-large embeddings
-- **Frontend**: HTML, CSS, JavaScript
-- **APIs**: Gmail, Google Calendar, Google Contacts
-- **Protocol**: MCP (Model Context Protocol)
+| Database | Use Case | Status |
+|----------|----------|--------|
+| Pinecone | Main RAG | ✅ Ready |
+| PostgreSQL + pgvector | Code/Projects | 🔜 Coming |
+| Redis | Cache/Fast access | 🔜 Coming |
+| Qdrant | Alternative vectors | 🔜 Coming |
 
-## File Structure
+---
+
+## 📁 File Structure
 
 ```
 enercon-rag/
-├── pinecone_server_v2.py   # Backend server
+├── pinecone_server_v2.py   # WebSocket server για Web UI
 ├── pinecone_app_v2.html    # Frontend UI
-├── add_to_rag.py           # Script για προσθήκη στο RAG
-├── check_memory.py         # Script για έλεγχο μνήμης
-├── search_test.py          # Script για αναζήτηση
-├── credentials.json        # Google OAuth (not in git)
-├── token.pickle           # OAuth token (not in git)
-├── .env                   # API keys (not in git)
-├── .env.example           # Example env file
-├── .gitignore
-├── requirements.txt
-├── uploads/               # Uploaded files (not in git)
+├── mcp_server.py           # MCP Server για Claude Desktop
+├── mcp_remote.py           # FastAPI server για Cloud
+├── Dockerfile              # Για Cloud Run
+├── add_to_rag.py           # Helper: προσθήκη στο RAG
+├── check_memory.py         # Helper: έλεγχος μνήμης
+├── search_test.py          # Helper: test αναζήτηση
+├── .env.example            # Template για env variables
+├── requirements.txt        # Python dependencies
+├── requirements-remote.txt # Dependencies για remote server
+├── DEPLOY_CLOUD_RUN.md     # Οδηγίες deployment
 └── README.md
 ```
 
-## License
+---
+
+## 🔑 API Keys Required
+
+| Service | Που το παίρνεις | Required |
+|---------|-----------------|----------|
+| Pinecone | [pinecone.io](https://pinecone.io) | ✅ Yes |
+| Claude | [console.anthropic.com](https://console.anthropic.com) | Optional |
+| Google OAuth | [console.cloud.google.com](https://console.cloud.google.com) | For Gmail/Calendar |
+
+---
+
+## 📝 License
 
 MIT
 
-## Author
+## 👨‍💻 Author
 
 Made with ❤️ by [kostas-max](https://github.com/kostas-max)
