@@ -1,5 +1,6 @@
 """
 Pinecone Server v3 με AI Assistant + PDF Generator + Email Templates
+UPDATED: Smart text handling - δεν κόβονται πια τα μικρά κείμενα
 """
 import asyncio
 import websockets
@@ -110,13 +111,42 @@ def get_contacts_service():
         get_google_services()
     return contacts_service
 
+# ============ SMART TEXT HELPER ============
+# Κατηγορίες που θέλουμε ΠΑΝΤΑ ολόκληρο το κείμενο
+FULL_TEXT_CATEGORIES = ["note", "contact", "quote", "pricelist", "skills"]
+
+def get_smart_text(text, category, max_length=500):
+    """
+    Επιστρέφει το κείμενο με έξυπνο truncation:
+    - Αν είναι μικρό (<1500 chars) → ολόκληρο
+    - Αν είναι σημαντική κατηγορία → ολόκληρο  
+    - Αλλιώς → κομμένο με "..."
+    """
+    if not text:
+        return ""
+    
+    # Μικρά κείμενα → ολόκληρα
+    if len(text) <= 1500:
+        return text
+    
+    # Σημαντικές κατηγορίες → ολόκληρα (μέχρι 8000)
+    if category in FULL_TEXT_CATEGORIES:
+        return text[:8000]
+    
+    # Μεγάλα κείμενα (emails, PDFs) → κομμένα
+    return text[:max_length] + "..." if len(text) > max_length else text
+
 # ============ AI ASSISTANT ============
 
 def search_rag(query, top_k=5):
     """Search RAG for context"""
     result = pc.inference.embed(model="multilingual-e5-large", inputs=[query], parameters={"input_type": "query"})
     results = index.query(vector=result.data[0].values, top_k=top_k, include_metadata=True)
-    return [{"title": m.metadata.get("title", ""), "text": m.metadata.get("text", "")[:1000], "category": m.metadata.get("category", "")} for m in results.matches]
+    return [{
+        "title": m.metadata.get("title", ""), 
+        "text": get_smart_text(m.metadata.get("text", ""), m.metadata.get("category", ""), max_length=2000),
+        "category": m.metadata.get("category", "")
+    } for m in results.matches]
 
 def ask_claude(user_message, context="", system_prompt=""):
     """Ask Claude with RAG context"""
@@ -162,7 +192,9 @@ def ai_chat(user_message, action=None, settings=None):
         if rag_results:
             context = "📚 Σχετικές πληροφορίες από τη βάση:\n\n"
             for r in rag_results:
-                context += f"**{r['title']}** ({r['category']})\n{r['text'][:500]}...\n\n"
+                # UPDATED: χρήση smart text αντί για σκληρό limit
+                display_text = get_smart_text(r['text'], r['category'], max_length=1000)
+                context += f"**{r['title']}** ({r['category']})\n{display_text}\n\n"
     
     # Custom prompts based on action
     if action == 'quote':
@@ -720,7 +752,14 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 def search(query, top_k=15):
     result = pc.inference.embed(model="multilingual-e5-large", inputs=[query], parameters={"input_type": "query"})
     results = index.query(vector=result.data[0].values, top_k=top_k, include_metadata=True)
-    return [{"id": m.id, "score": round(m.score, 3), "title": m.metadata.get("title", ""), "category": m.metadata.get("category", ""), "text": m.metadata.get("text", "")[:500], "filepath": m.metadata.get("filepath", "")} for m in results.matches]
+    return [{
+        "id": m.id, 
+        "score": round(m.score, 3), 
+        "title": m.metadata.get("title", ""), 
+        "category": m.metadata.get("category", ""), 
+        "text": get_smart_text(m.metadata.get("text", ""), m.metadata.get("category", ""), max_length=800),
+        "filepath": m.metadata.get("filepath", "")
+    } for m in results.matches]
 
 def upload_file(file_data, filename, category):
     file_bytes = base64.b64decode(file_data)
