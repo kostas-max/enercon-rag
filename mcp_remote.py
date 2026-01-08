@@ -56,6 +56,31 @@ class AddRequest(BaseModel):
     title: str
     category: Optional[str] = "note"
 
+# ============ SMART TEXT HELPER ============
+# Κατηγορίες που θέλουμε ΠΑΝΤΑ ολόκληρο το κείμενο
+FULL_TEXT_CATEGORIES = ["note", "contact", "quote", "pricelist", "skills"]
+
+def get_smart_text(text, category, max_length=500):
+    """
+    Επιστρέφει το κείμενο με έξυπνο truncation:
+    - Αν είναι μικρό (<1500 chars) → ολόκληρο
+    - Αν είναι σημαντική κατηγορία → ολόκληρο  
+    - Αλλιώς → κομμένο με "..."
+    """
+    if not text:
+        return ""
+    
+    # Μικρά κείμενα → ολόκληρα
+    if len(text) <= 1500:
+        return text
+    
+    # Σημαντικές κατηγορίες → ολόκληρα (μέχρι 8000)
+    if category in FULL_TEXT_CATEGORIES:
+        return text[:8000]
+    
+    # Μεγάλα κείμενα (emails, PDFs) → κομμένα
+    return text[:max_length] + "..." if len(text) > max_length else text
+
 # ============ HELPER FUNCTIONS ============
 def do_search(query: str, top_k: int = 5):
     result = pc.inference.embed(
@@ -73,7 +98,7 @@ def do_search(query: str, top_k: int = 5):
             "id": m.id,
             "title": m.metadata.get("title", ""),
             "category": m.metadata.get("category", ""),
-            "text": m.metadata.get("text", "")[:500],
+            "text": get_smart_text(m.metadata.get("text", ""), m.metadata.get("category", ""), max_length=800),
             "score": round(m.score, 3)
         }
         for m in results.matches
@@ -216,7 +241,7 @@ async def sse_post(request: Request):
                 results = do_search(args.get("query", ""), args.get("top_k", 5))
                 content = "🔍 **Αποτελέσματα αναζήτησης:**\n\n"
                 for r in results:
-                    content += f"**{r['title']}** ({r['category']}) - Score: {r['score']}\n{r['text'][:200]}...\n\n"
+                    content += f"**{r['title']}** ({r['category']}) - Score: {r['score']}\n{r['text']}\n\n"
                 return {
                     "jsonrpc": "2.0",
                     "id": msg_id,
